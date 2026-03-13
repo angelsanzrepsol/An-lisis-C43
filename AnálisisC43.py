@@ -139,9 +139,19 @@ df.columns = cols
 
 df["Fecha"] = pd.to_datetime(df["Fecha"], errors="coerce")
 
-# convertir variables a número
+# eliminar columnas completamente vacías
+df = df.dropna(axis=1, how="all")
+
+# eliminar columnas duplicadas
+df = df.loc[:, ~df.columns.duplicated()]
+
+# convertir columnas a numéricas de forma segura
 for c in df.columns[2:]:
-    df[c] = pd.to_numeric(df[c], errors="coerce")
+
+    try:
+        df[c] = pd.to_numeric(df[c].squeeze(), errors="coerce")
+    except:
+        pass
 
 # eliminar columnas vacías
 df = df.dropna(axis=1, how="all")
