@@ -1,6 +1,8 @@
 import streamlit as st
 import pandas as pd
+from PIL import Image, ImageFilter
 import numpy as np
+from pathlib import Path
 import plotly.graph_objects as go
 import plotly.express as px
 from sklearn.linear_model import LinearRegression
@@ -64,7 +66,30 @@ st.markdown(
     "<h1 class='darkblue-title'>Análisis C43</h1>",
     unsafe_allow_html=True
 )
+logo_path = Path("logo_repsol.png")
+if logo_path.exists():
+    try:
+        logo = Image.open(logo_path).convert("RGBA")
+        blur = 12
+        pad = blur * 4
 
+        canvas = Image.new(
+            "RGBA",
+            (logo.width + pad, logo.height + pad),
+            (255, 255, 255, 0)
+        )
+
+        canvas.paste(logo, (pad // 2, pad // 2), logo)
+
+        mask = canvas.split()[3]
+        halo = mask.filter(ImageFilter.GaussianBlur(blur))
+        canvas.putalpha(halo)
+
+        st.image(canvas, width=180)
+    except Exception:
+        st.warning("No se pudo cargar el logo.")
+else:
+    st.info("Archivo logo_repsol.png no encontrado.")
 # ============================================
 # SIDEBAR
 # ============================================
