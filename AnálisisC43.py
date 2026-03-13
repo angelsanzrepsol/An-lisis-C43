@@ -105,65 +105,47 @@ df_raw = pd.read_excel(
 # DETECTAR TIPO DE HEADER
 # ============================================
 
-header_name = df_raw.iloc[3]
-possible_units = df_raw.iloc[4]
+# ============================================
+# CONSTRUIR NOMBRES DE COLUMNAS (3 niveles)
+# ============================================
 
-# comprobar si la fila 4 parece unidad o datos
-units_detected = 0
-
-for v in possible_units[2:10]:
-
-    if isinstance(v,str):
-        if len(v) < 10:
-            units_detected += 1
-
-# si parece unidad usamos dos filas
-use_units = units_detected > 3
+group = df_raw.iloc[0]
+name_long = df_raw.iloc[1]
+name_short = df_raw.iloc[2]
 
 cols = []
 
-if use_units:
+for i,(g,n,s) in enumerate(zip(group,name_long,name_short)):
 
-    for i,(a,b) in enumerate(zip(header_name,possible_units)):
+    if i == 0:
+        cols.append("Fecha")
 
-        if i == 0:
-            cols.append("Fecha")
+    elif i == 1:
+        cols.append("Estado")
 
-        elif i == 1:
-            cols.append("Estado")
+    else:
 
+        parts = []
+
+        if pd.notna(g):
+            parts.append(str(g))
+
+        if pd.notna(n):
+            parts.append(str(n))
+
+        if pd.notna(s):
+            parts.append(str(s))
+
+        if len(parts) == 0:
+            cols.append(f"Var_{i}")
         else:
+            cols.append(" | ".join(parts))
 
-            if pd.isna(a):
-                cols.append(f"Var_{i}")
+# ============================================
+# DATOS
+# ============================================
 
-            elif pd.isna(b):
-                cols.append(str(a))
-
-            else:
-                cols.append(f"{a} ({b})")
-
-    df = df_raw.iloc[5:].copy()
-
-else:
-
-    for i,a in enumerate(header_name):
-
-        if i == 0:
-            cols.append("Fecha")
-
-        elif i == 1:
-            cols.append("Estado")
-
-        else:
-
-            if pd.isna(a):
-                cols.append(f"Var_{i}")
-            else:
-                cols.append(str(a))
-
-    df = df_raw.iloc[4:].copy()
-
+df = df_raw.iloc[4:].copy()
 df.columns = cols
 
 # ============================================
