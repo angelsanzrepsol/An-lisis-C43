@@ -167,7 +167,8 @@ df.columns = cols
 # LIMPIEZA
 # ============================================
 
-df["Fecha"] = pd.to_datetime(df["Fecha"], errors="coerce")
+df["Fecha"] = pd.to_datetime(df["Fecha"], errors="coerce").dt.normalize()
+fechas_marcha = pd.to_datetime(fechas_marcha, errors="coerce").dt.normalize()
 
 # eliminar columnas completamente vacías
 df = df.dropna(axis=1, how="all")
@@ -374,55 +375,32 @@ with tab2:
 
     x_rank = [v for v in variables if v != y_obj]
 
-    df_clean = df[x_rank + [y_obj]].copy()
-
-    # convertir todo a numérico
-    for c in df_clean.columns:
-        df_clean[c] = pd.to_numeric(df_clean[c], errors="coerce")
-    
-    # eliminar filas con NaN
-    df_clean = df_clean.dropna()
-    
-    # eliminar columnas constantes
-    cols_validas = []
-    
-    for c in x_rank:
-        if df_clean[c].nunique() > 1:
-            cols_validas.append(c)
-    
-    X = df_clean[cols_validas]
-    y = df_clean[y_obj]
-    
-    # evitar error si quedan pocas columnas
-    if X.shape[1] == 0:
-        st.warning("No hay variables válidas para calcular correlaciones")
-        st.stop()
-    
-    # mutual information
-    mi = mutual_info_regression(X, y)
-
     resultados = []
 
+    y_series = pd.to_numeric(df[y_obj], errors="coerce")
+    
     for col in x_rank:
     
-        x = pd.to_numeric(df[col], errors="coerce")
-        y = pd.to_numeric(df[y_obj], errors="coerce")
+        x_series = pd.to_numeric(df[col], errors="coerce")
     
         df_temp = pd.DataFrame({
-            "x": x,
-            "y": y
+            "x": x_series,
+            "y": y_series
         }).dropna()
     
-        if len(df_temp) < 10:
+        # basta con pocos puntos
+        if len(df_temp) < 5:
             continue
     
         X = df_temp["x"].values.reshape(-1,1)
         Y = df_temp["y"].values
     
-        model = LinearRegression()
-        model.fit(X, Y)
-    
-        r2 = model.score(X, Y)
+        try:
+            model = LinearRegression()
+            model.fit(X, Y)
+            r2 = model.score(X, Y)
+        except:
+            r2 = 0
     
         pearson = df_temp["x"].corr(df_temp["y"])
         spearman = df_temp["x"].corr(df_temp["y"], method="spearman")
@@ -443,9 +421,11 @@ with tab2:
             "Score": score
         })
     
-    df_rank = pd.DataFrame(resultados).sort_values("Score", ascending=False)
-
-    st.dataframe(df_rank)
+    if len(resultados) == 0:
+        st.warning("No hay suficientes datos para calcular correlaciones")
+    else:
+        df_rank = pd.DataFrame(resultados).sort_values("Score", ascending=False)
+        st.dataframe(df_rank)
 
     fig_rank = px.bar(
         df_rank,
