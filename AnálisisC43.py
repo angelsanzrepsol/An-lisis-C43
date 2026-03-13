@@ -81,61 +81,70 @@ if file is None:
     st.stop()
 
 # ============================================
-# LECTURA DE ARCHIVO
+# LECTURA DE EXCEL
 # ============================================
 
-if file.name.endswith(".csv"):
+xls = pd.ExcelFile(file)
 
-    df = pd.read_csv(file)
+sheet = st.sidebar.selectbox(
+    "Seleccionar pestaña",
+    xls.sheet_names
+)
 
-else:
+df_raw = pd.read_excel(
+    xls,
+    sheet_name=sheet,
+    header=None
+)
 
-    xls = pd.ExcelFile(file)
+# ============================================
+# CONSTRUIR NOMBRES DE COLUMNAS
+# ============================================
 
-    sheet = st.sidebar.selectbox(
-        "Seleccionar pestaña",
-        xls.sheet_names
-    )
+header_name = df_raw.iloc[3]
+header_unit = df_raw.iloc[4]
 
-    df_raw = pd.read_excel(
-        xls,
-        sheet_name=sheet,
-        header=None
-    )
+cols = []
 
-    # ============================================
-    # CREAR NOMBRES DE VARIABLES (FILAS 3 Y 4)
-    # ============================================
-
-    header1 = df_raw.iloc[3]
-    header2 = df_raw.iloc[4]
-
-    cols = []
-
-    for a, b in zip(header1, header2):
-
+for i,(a,b) in enumerate(zip(header_name,header_unit)):
+    
+    # columnas especiales
+    if i == 0:
+        cols.append("Fecha")
+        
+    elif i == 1:
+        cols.append("Estado")
+        
+    else:
+        
         if pd.isna(a) and pd.isna(b):
-            cols.append("")
-
+            cols.append(f"Var_{i}")
+            
         elif pd.isna(b):
             cols.append(str(a))
-
+            
         else:
             cols.append(f"{a} ({b})")
 
-    df = df_raw.iloc[5:].copy()
-    df.columns = cols
-
 # ============================================
-# RENOMBRAR COLUMNAS PRINCIPALES
+# DATOS
 # ============================================
 
-df.rename(columns={
-    df.columns[0]: "Fecha",
-    df.columns[1]: "Estado"
-}, inplace=True)
+df = df_raw.iloc[5:].copy()
+df.columns = cols
+
+# ============================================
+# LIMPIEZA
+# ============================================
 
 df["Fecha"] = pd.to_datetime(df["Fecha"], errors="coerce")
+
+# convertir variables a número
+for c in df.columns[2:]:
+    df[c] = pd.to_numeric(df[c], errors="coerce")
+
+# eliminar columnas vacías
+df = df.dropna(axis=1, how="all")
 
 # ============================================
 # FILTRO MARCHA / PARADA
@@ -148,16 +157,9 @@ estado = st.sidebar.selectbox(
 
 df = df[df["Estado"] == estado]
 
-# ============================================
-# CONVERTIR VARIABLES NUMÉRICAS
-# ============================================
-
-for col in df.columns[2:]:
-    df[col] = pd.to_numeric(df[col], errors="coerce")
-
 variables = df.columns[2:].tolist()
 
-st.success(f"Datos disponibles: {len(df)} filas | {len(variables)} variables")
+st.success(f"Datos cargados: {len(df)} filas | {len(variables)} variables")
 
 # ============================================
 # TABS
