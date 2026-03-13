@@ -85,6 +85,21 @@ if file is None:
 # ============================================
 
 xls = pd.ExcelFile(file)
+# ============================================
+# OBTENER FECHAS EN MARCHA DESDE GENERAL
+# ============================================
+
+df_general_raw = pd.read_excel(xls, sheet_name="General", header=None)
+
+fecha_general = pd.to_datetime(df_general_raw.iloc[4:,0], errors="coerce")
+estado_general = df_general_raw.iloc[4:,1].astype(str).str.upper()
+
+df_general = pd.DataFrame({
+    "Fecha": fecha_general,
+    "Estado": estado_general
+})
+
+fechas_marcha = df_general[df_general["Estado"].str.contains("MARCHA")]["Fecha"]
 
 sheet = st.sidebar.selectbox(
     "Seleccionar pestaña",
@@ -170,7 +185,11 @@ for c in df.columns[2:]:
 
 # eliminar columnas vacías
 df = df.dropna(axis=1, how="all")
+# ============================================
+# FILTRAR SOLO FECHAS EN MARCHA
+# ============================================
 
+df = df[df["Fecha"].isin(fechas_marcha)]
 # ============================================
 # FILTRO MARCHA / PARADA
 # ============================================
@@ -179,8 +198,6 @@ estado = st.sidebar.selectbox(
     "Estado de planta",
     ["MARCHA","PARADA"]
 )
-
-df = df[df["Estado"] == estado]
 
 variables = df.columns[2:].tolist()
 
