@@ -241,6 +241,8 @@ if uploaded_file:
         
             # eliminar columnas vacías
             df = df.dropna(axis=1, how="all")
+            # convertir columnas a numéricas
+            df.iloc[:,1:] = df.iloc[:,1:].apply(pd.to_numeric, errors="coerce")
         
             camara = hoja
         
