@@ -61,7 +61,7 @@ h1, h2, h3, h4 {
 # ============================================
 
 st.markdown(
-    "<h1 class='darkblue-title'>Analizador interactivo de variables de proceso</h1>",
+    "<h1 class='darkblue-title'>Análisis C43</h1>",
     unsafe_allow_html=True
 )
 
@@ -101,36 +101,69 @@ df_raw = pd.read_excel(
 # CONSTRUIR NOMBRES DE COLUMNAS
 # ============================================
 
+# ============================================
+# DETECTAR TIPO DE HEADER
+# ============================================
+
 header_name = df_raw.iloc[3]
-header_unit = df_raw.iloc[4]
+possible_units = df_raw.iloc[4]
+
+# comprobar si la fila 4 parece unidad o datos
+units_detected = 0
+
+for v in possible_units[2:10]:
+
+    if isinstance(v,str):
+        if len(v) < 10:
+            units_detected += 1
+
+# si parece unidad usamos dos filas
+use_units = units_detected > 3
 
 cols = []
 
-for i,(a,b) in enumerate(zip(header_name,header_unit)):
-    
-    # columnas especiales
-    if i == 0:
-        cols.append("Fecha")
-        
-    elif i == 1:
-        cols.append("Estado")
-        
-    else:
-        
-        if pd.isna(a) and pd.isna(b):
-            cols.append(f"Var_{i}")
-            
-        elif pd.isna(b):
-            cols.append(str(a))
-            
+if use_units:
+
+    for i,(a,b) in enumerate(zip(header_name,possible_units)):
+
+        if i == 0:
+            cols.append("Fecha")
+
+        elif i == 1:
+            cols.append("Estado")
+
         else:
-            cols.append(f"{a} ({b})")
 
-# ============================================
-# DATOS
-# ============================================
+            if pd.isna(a):
+                cols.append(f"Var_{i}")
 
-df = df_raw.iloc[5:].copy()
+            elif pd.isna(b):
+                cols.append(str(a))
+
+            else:
+                cols.append(f"{a} ({b})")
+
+    df = df_raw.iloc[5:].copy()
+
+else:
+
+    for i,a in enumerate(header_name):
+
+        if i == 0:
+            cols.append("Fecha")
+
+        elif i == 1:
+            cols.append("Estado")
+
+        else:
+
+            if pd.isna(a):
+                cols.append(f"Var_{i}")
+            else:
+                cols.append(str(a))
+
+    df = df_raw.iloc[4:].copy()
+
 df.columns = cols
 
 # ============================================
