@@ -403,29 +403,46 @@ with tab2:
 
     resultados = []
 
-    for i, col in enumerate(x_rank):
-
-        x = df_clean[col].values.reshape(-1,1)
-
+    for col in x_rank:
+    
+        x = pd.to_numeric(df[col], errors="coerce")
+        y = pd.to_numeric(df[y_obj], errors="coerce")
+    
+        df_temp = pd.DataFrame({
+            "x": x,
+            "y": y
+        }).dropna()
+    
+        if len(df_temp) < 10:
+            continue
+    
+        X = df_temp["x"].values.reshape(-1,1)
+        Y = df_temp["y"].values
+    
         model = LinearRegression()
-        model.fit(x, y)
-
-        r2 = model.score(x, y)
-
-        pearson = df_clean[[col, y_obj]].corr().iloc[0,1]
-        spearman = df_clean[[col, y_obj]].corr(method="spearman").iloc[0,1]
-
-        score = abs(pearson) + abs(spearman) + mi[i] + r2
-
+        model.fit(X, Y)
+    
+        r2 = model.score(X, Y)
+    
+        pearson = df_temp["x"].corr(df_temp["y"])
+        spearman = df_temp["x"].corr(df_temp["y"], method="spearman")
+    
+        try:
+            mi = mutual_info_regression(X, Y)[0]
+        except:
+            mi = 0
+    
+        score = abs(pearson) + abs(spearman) + r2 + mi
+    
         resultados.append({
             "Variable": col,
             "Pearson": pearson,
             "Spearman": spearman,
-            "Mutual_Info": mi[i],
+            "Mutual_Info": mi,
             "R2": r2,
             "Score": score
         })
-
+    
     df_rank = pd.DataFrame(resultados).sort_values("Score", ascending=False)
 
     st.dataframe(df_rank)
