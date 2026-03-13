@@ -217,20 +217,26 @@ if uploaded_file:
         
             columnas = []
         
-            for tag, var, uni in zip(fila_tag, fila_var, fila_uni):
-        
-                nombre = ""
-        
+            for i,(tag, var, uni) in enumerate(zip(fila_tag, fila_var, fila_uni)):
+
+                partes = []
+            
                 if pd.notna(tag):
-                    nombre += str(tag)
-        
+                    partes.append(str(tag).strip())
+            
                 if pd.notna(var):
-                    nombre += " - " + str(var)
-        
+                    partes.append(str(var).strip())
+            
                 if pd.notna(uni):
-                    nombre += f" ({uni})"
-        
-                columnas.append(nombre.strip())
+                    partes.append(f"({str(uni).strip()})")
+            
+                nombre = " - ".join(partes)
+            
+                # si la columna queda vacía le ponemos nombre automático
+                if nombre == "":
+                    nombre = f"var_{i}"
+            
+                columnas.append(nombre)
         
             # datos empiezan en fila 5
             df = df_raw.iloc[5:].copy()
@@ -239,8 +245,11 @@ if uploaded_file:
             # convertir fecha
             df.iloc[:,0] = pd.to_datetime(df.iloc[:,0], errors="coerce")
             
-            # filtrar solo fechas en marcha
-            df = df[df.iloc[:,1] == "MARCHA"]
+            # convertir fecha
+            df.iloc[:,0] = pd.to_datetime(df.iloc[:,0], errors="coerce")
+            
+            # quedarnos solo con fechas en marcha
+            df = df[df.iloc[:,0].isin(fechas_marcha)]
         
             # eliminar columnas vacías
             df = df.dropna(axis=1, how="all")
