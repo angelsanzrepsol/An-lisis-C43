@@ -342,11 +342,31 @@ with tab2:
 
     x_rank = [v for v in variables if v != y_obj]
 
-    df_clean = df[x_rank + [y_obj]].dropna()
+    df_clean = df[x_rank + [y_obj]].copy()
 
-    X = df_clean[x_rank]
+    # convertir todo a numérico
+    for c in df_clean.columns:
+        df_clean[c] = pd.to_numeric(df_clean[c], errors="coerce")
+    
+    # eliminar filas con NaN
+    df_clean = df_clean.dropna()
+    
+    # eliminar columnas constantes
+    cols_validas = []
+    
+    for c in x_rank:
+        if df_clean[c].nunique() > 1:
+            cols_validas.append(c)
+    
+    X = df_clean[cols_validas]
     y = df_clean[y_obj]
-
+    
+    # evitar error si quedan pocas columnas
+    if X.shape[1] == 0:
+        st.warning("No hay variables válidas para calcular correlaciones")
+        st.stop()
+    
+    # mutual information
     mi = mutual_info_regression(X, y)
 
     resultados = []
