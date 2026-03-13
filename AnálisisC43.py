@@ -183,14 +183,75 @@ if uploaded_file:
     try:
 
         xls = pd.ExcelFile(uploaded_file)
+        # obtener fechas en marcha desde hoja General
+        df_general = pd.read_excel(
+            xls,
+            sheet_name="General",
+            header=None
+        )
+        
+        fechas_marcha = df_general[
+            df_general.iloc[:,1] == "MARCHA"
+        ].iloc[:,0]
+        
+        fechas_marcha = pd.to_datetime(fechas_marcha)
 
         for hoja in xls.sheet_names:
 
-            df = pd.read_excel(
+            df_raw = pd.read_excel(
                 xls,
                 sheet_name=hoja,
-                header=4
+                header=None
             )
+        
+            if df_raw is None or df_raw.empty:
+                continue
+        
+            # filas de nombres
+            fila_tag = df_raw.iloc[2]
+            fila_var = df_raw.iloc[3]
+            fila_uni = df_raw.iloc[4]
+        
+            columnas = []
+        
+            for tag, var, uni in zip(fila_tag, fila_var, fila_uni):
+        
+                nombre = ""
+        
+                if pd.notna(tag):
+                    nombre += str(tag)
+        
+                if pd.notna(var):
+                    nombre += " - " + str(var)
+        
+                if pd.notna(uni):
+                    nombre += f" ({uni})"
+        
+                columnas.append(nombre.strip())
+        
+            # datos empiezan en fila 5
+            df = df_raw.iloc[5:].copy()
+        
+            df.columns = columnas
+            # convertir fecha
+            df.iloc[:,0] = pd.to_datetime(df.iloc[:,0], errors="coerce")
+            
+            # filtrar solo fechas en marcha
+            df = df[df.iloc[:,0].isin(fechas_marcha)]
+        
+            # eliminar columnas vacías
+            df = df.dropna(axis=1, how="all")
+        
+            camara = hoja
+        
+            st.session_state.df_camaras_original[camara] = df.copy()
+            st.session_state.df_camaras_activo[camara] = df.copy()
+        
+            st.session_state.df_camaras_eliminados[camara] = pd.DataFrame(
+                columns=df.columns
+            )
+        
+            st.session_state.variables_excluidas_global[camara] = []
 
             if df is None or df.empty:
                 continue
