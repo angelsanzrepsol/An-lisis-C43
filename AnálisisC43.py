@@ -197,6 +197,9 @@ if uploaded_file:
         fechas_marcha = pd.to_datetime(fechas_marcha)
 
         for hoja in xls.sheet_names:
+        
+            if hoja == "General":
+                continue
 
             df_raw = pd.read_excel(
                 xls,
@@ -237,12 +240,12 @@ if uploaded_file:
             df.iloc[:,0] = pd.to_datetime(df.iloc[:,0], errors="coerce")
             
             # filtrar solo fechas en marcha
-            df = df[df.iloc[:,0].isin(fechas_marcha)]
+            df = df[df.iloc[:,1] == "MARCHA"]
         
             # eliminar columnas vacías
             df = df.dropna(axis=1, how="all")
             # convertir columnas a numéricas
-            df.iloc[:,1:] = df.iloc[:,1:].apply(pd.to_numeric, errors="coerce")
+            df.iloc[:,2:] = df.iloc[:,2:].apply(pd.to_numeric, errors="coerce")
         
             camara = hoja
         
@@ -255,12 +258,6 @@ if uploaded_file:
         
             st.session_state.variables_excluidas_global[camara] = []
 
-            if df is None or df.empty:
-                continue
-
-            camara = hoja
-
-            st.session_state.df_camaras_original[camara] = df.copy()
             st.session_state.df_camaras_activo[camara] = df.copy()
 
             st.session_state.df_camaras_eliminados[camara] = pd.DataFrame(
