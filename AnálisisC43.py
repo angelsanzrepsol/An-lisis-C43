@@ -453,11 +453,11 @@ with tab2:
 
     resultados = []
 
-    y_series = pd.to_numeric(df[y_obj], errors="coerce")
+    y_series = pd.to_numeric(df[y_obj].squeeze(), errors="coerce")
     
     for col in x_rank:
     
-        x_series = pd.to_numeric(df[col], errors="coerce")
+        x_series = pd.to_numeric(df[col].squeeze(), errors="coerce")
     
         df_temp = pd.DataFrame({
             "x": x_series,
