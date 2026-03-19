@@ -7,7 +7,32 @@ import plotly.graph_objects as go
 import plotly.express as px
 from sklearn.linear_model import LinearRegression
 from sklearn.feature_selection import mutual_info_regression
+def construir_columnas(df_all_raw, n_header_rows):
 
+    headers = [df_all_raw.iloc[i] for i in range(n_header_rows)]
+
+    cols = []
+
+    for col_idx in range(len(df_all_raw.columns)):
+
+        partes = []
+
+        for h in headers:
+            val = h[col_idx]
+            if pd.notna(val):
+                partes.append(str(val))
+
+        if col_idx == 0:
+            cols.append("Fecha")
+        elif col_idx == 1:
+            cols.append("Estado")
+        else:
+            if len(partes) == 0:
+                cols.append(f"Var_{col_idx}")
+            else:
+                cols.append(" | ".join(partes))
+
+    return cols
 # ============================================
 # CONFIGURACIÓN GENERAL
 # ============================================
@@ -111,47 +136,106 @@ if file is None:
 
 xls = pd.ExcelFile(file)
 # ============================================
-# OBTENER FECHAS EN MARCHA DESDE GENERAL
+# FILTROS GLOBALES DESDE GENERAL
 # ============================================
 
-df_general_raw = pd.read_excel(xls, sheet_name="General", header=None)
+df_all_general_raw = pd.read_excel(xls, sheet_name="General", header=None)
 
-fecha_general = pd.to_datetime(df_general_raw.iloc[4:,0], errors="coerce")
-estado_general = df_general_raw.iloc[4:,1].astype(str).str.upper()
+cols_general = construir_columnas(df_all_general_raw, 5)
 
-df_general = pd.DataFrame({
-    "Fecha": fecha_general,
-    "Estado": estado_general
-})
+df_all_general = df_all_general_raw.iloc[5:].copy()
+df_all_general.columns = cols_general
 
-fechas_marcha = df_general[df_general["Estado"].str.contains("MARCHA")]["Fecha"]
+df_all_general["Fecha"] = pd.to_datetime(df_all_general["Fecha"], errors="coerce").dt.normalize()
+df_all_general["Estado"] = df_all_general["Estado"].astype(str).str.upper()
 
-sheet = st.sidebar.selectbox(
-    "Seleccionar pestaña",
-    xls.sheet_names
+# -------- SELECTORES --------
+
+estado_sel = st.sidebar.selectbox(
+    "Estado planta",
+    ["TODOS", "MARCHA", "PARO"]
 )
 
-df_raw = pd.read_excel(
-    xls,
-    sheet_name=sheet,
-    header=None
+modo_prod = st.sidebar.selectbox(
+    "Modo producción",
+    ["TOTAL", "MONOPRODUCCIÓN", "COPRODUCCIÓN"]
 )
 
-# ============================================
-# CONSTRUIR NOMBRES DE COLUMNAS
-# ============================================
+sheets_sel = st.sidebar.multiselect(
+    "Seleccionar pestañas",
+    xls.sheet_names,
+    default=xls.sheet_names[:2]
+)
+
+# -------- FILTRO ESTADO --------
+
+if estado_sel != "TODOS":
+    fechas_estado = df_all_general[
+        df_all_general["Estado"].str.contains(estado_sel)
+    ]["Fecha"]
+else:
+    fechas_estado = df_all_general["Fecha"]
+
+# -------- FILTRO PRODUCCIÓN --------
+
+col3 = df_all_general.columns[2]
+
+if modo_prod == "MONOPRODUCCIÓN":
+    fechas_prod = df_all_general[
+        df_all_general[col3].astype(str).str.contains("ACV-DIESEL", na=False)
+    ]["Fecha"]
+
+elif modo_prod == "COPRODUCCIÓN":
+    fechas_prod = df_all_general[
+        df_all_general[col3].astype(str).str.contains("ACV-COPROD|PFAD-COPROD", na=False)
+    ]["Fecha"]
+
+else:
+    fechas_prod = df_all_general["Fecha"]
+
+# -------- COMBINAR --------
+
+fechas_validas = set(fechas_estado) & set(fechas_prod)
 
 # ============================================
-# DETECTAR TIPO DE HEADER
+# LEER TODAS LAS PESTAÑAS SELECCIONADAS
 # ============================================
 
+df_alls = []
+
+for sh in sheets_sel:
+
+    df_all_raw = pd.read_excel(xls, sheet_name=sh, header=None)
+
+    if sh == "General":
+        n_header = 5
+    elif "SGL" in sh:
+        n_header = 3
+    else:
+        n_header = 3
+
+    cols = construir_columnas(df_all_raw, n_header)
+
+    df_all_tmp = df_all_raw.iloc[n_header:].copy()
+    df_all_tmp.columns = cols
+
+    df_all_tmp["Fecha"] = pd.to_datetime(df_all_tmp["Fecha"], errors="coerce").dt.normalize()
+
+    df_all_tmp = df_all_tmp[df_all_tmp["Fecha"].isin(fechas_validas)]
+
+    df_all_tmp = df_all_tmp.set_index("Fecha")
+    df_all_tmp = df_all_tmp.add_prefix(f"{sh} | ")
+
+    df_alls.append(df_all_tmp)
+
+df_all_all = pd.concat(df_alls, axis=1).reset_index()
 # ============================================
 # CONSTRUIR NOMBRES DE COLUMNAS (3 niveles)
 # ============================================
 
-group = df_raw.iloc[0]
-name_long = df_raw.iloc[1]
-name_short = df_raw.iloc[2]
+group = df_all_raw.iloc[0]
+name_long = df_all_raw.iloc[1]
+name_short = df_all_raw.iloc[2]
 
 cols = []
 
@@ -185,37 +269,37 @@ for i,(g,n,s) in enumerate(zip(group,name_long,name_short)):
 # DATOS
 # ============================================
 
-df = df_raw.iloc[4:].copy()
-df.columns = cols
+df_all = df_all_raw.iloc[4:].copy()
+df_all.columns = cols
 
 # ============================================
 # LIMPIEZA
 # ============================================
 
-df["Fecha"] = pd.to_datetime(df["Fecha"], errors="coerce").dt.normalize()
+df_all["Fecha"] = pd.to_datetime(df_all["Fecha"], errors="coerce").dt.normalize()
 fechas_marcha = pd.to_datetime(fechas_marcha, errors="coerce").dt.normalize()
 
 # eliminar columnas completamente vacías
-df = df.dropna(axis=1, how="all")
+df_all = df_all.dropna(axis=1, how="all")
 
 # eliminar columnas duplicadas
-df = df.loc[:, ~df.columns.duplicated()]
+df_all = df_all.loc[:, ~df_all.columns.duplicated()]
 
 # convertir columnas a numéricas de forma segura
-for c in df.columns[2:]:
+for c in df_all.columns[2:]:
 
     try:
-        df[c] = pd.to_numeric(df[c].squeeze(), errors="coerce")
+        df_all[c] = pd.to_numeric(df_all[c].squeeze(), errors="coerce")
     except:
         pass
 
 # eliminar columnas vacías
-df = df.dropna(axis=1, how="all")
+df_all = df_all.dropna(axis=1, how="all")
 # ============================================
 # FILTRAR SOLO FECHAS EN MARCHA
 # ============================================
 
-df = df[df["Fecha"].isin(fechas_marcha)]
+df_all = df_all[df_all["Fecha"].isin(fechas_marcha)]
 # ============================================
 # FILTRO MARCHA / PARADA
 # ============================================
@@ -225,9 +309,9 @@ estado = st.sidebar.selectbox(
     ["MARCHA","PARADA"]
 )
 
-variables = df.columns[2:].tolist()
+variables = [c for c in df_all_all.columns if c != "Fecha"]
 
-st.success(f"Datos cargados: {len(df)} filas | {len(variables)} variables")
+st.success(f"Datos cargados: {len(df_all)} filas | {len(variables)} variables")
 
 # ============================================
 # TABS
@@ -276,8 +360,8 @@ with tab1:
 
     st.markdown("### Filtros")
 
-    xmin = float(df[x_var].min())
-    xmax = float(df[x_var].max())
+    xmin = float(df_all[x_var].min())
+    xmax = float(df_all[x_var].max())
 
     rx = st.slider(
         f"Rango {x_var}",
@@ -286,14 +370,14 @@ with tab1:
         (xmin, xmax)
     )
 
-    df_filt = df[(df[x_var] >= rx[0]) & (df[x_var] <= rx[1])]
+    df_all_filt = df_all[(df_all[x_var] >= rx[0]) & (df_all[x_var] <= rx[1])]
 
     rangos_y = {}
 
     for y in y_vars:
 
-        ymin = float(df_filt[y].min())
-        ymax = float(df_filt[y].max())
+        ymin = float(df_all_filt[y].min())
+        ymax = float(df_all_filt[y].max())
 
         r = st.slider(
             f"Rango {y}",
@@ -306,12 +390,12 @@ with tab1:
 
     for y, r in rangos_y.items():
 
-        df_filt = df_filt[
-            (df_filt[y] >= r[0]) &
-            (df_filt[y] <= r[1])
+        df_all_filt = df_all_filt[
+            (df_all_filt[y] >= r[0]) &
+            (df_all_filt[y] <= r[1])
         ]
 
-    st.write("Filas tras filtros:", df_filt.shape[0])
+    st.write("Filas tras filtros:", df_all_filt.shape[0])
 
     # ============================================
     # GRÁFICO
@@ -321,21 +405,21 @@ with tab1:
 
     for y in y_vars:
 
-        df_plot = df_filt[[x_var, y]].dropna()
+        df_all_plot = df_all_filt[[x_var, y]].dropna()
 
-        if df_plot.empty:
+        if df_all_plot.empty:
             continue
 
-        if color_var and color_var in df_filt.columns:
+        if color_var and color_var in df_all_filt.columns:
 
             fig.add_trace(
                 go.Scatter(
-                    x=df_filt[x_var],
-                    y=df_filt[y],
+                    x=df_all_filt[x_var],
+                    y=df_all_filt[y],
                     mode="markers",
                     name=y,
                     marker=dict(
-                        color=df_filt[color_var],
+                        color=df_all_filt[color_var],
                         colorscale="Viridis",
                         showscale=True,
                         colorbar=dict(title=color_var)
@@ -347,17 +431,17 @@ with tab1:
 
             fig.add_trace(
                 go.Scatter(
-                    x=df_filt[x_var],
-                    y=df_filt[y],
+                    x=df_all_filt[x_var],
+                    y=df_all_filt[y],
                     mode="markers",
                     name=y
                 )
             )
 
-        if len(df_plot) > 2:
+        if len(df_all_plot) > 2:
 
-            x = df_plot[x_var].values
-            yy = df_plot[y].values
+            x = df_all_plot[x_var].values
+            yy = df_all_plot[y].values
 
             model = LinearRegression()
             model.fit(x.reshape(-1,1), yy)
@@ -402,23 +486,23 @@ with tab2:
 
     resultados = []
 
-    y_series = pd.to_numeric(df[y_obj], errors="coerce")
+    y_series = pd.to_numeric(df_all[y_obj], errors="coerce")
     
     for col in x_rank:
     
-        x_series = pd.to_numeric(df[col], errors="coerce")
+        x_series = pd.to_numeric(df_all[col], errors="coerce")
     
-        df_temp = pd.DataFrame({
+        df_all_temp = pd.DataFrame({
             "x": x_series,
             "y": y_series
         }).dropna()
     
         # basta con pocos puntos
-        if len(df_temp) < 5:
+        if len(df_all_temp) < 5:
             continue
     
-        X = df_temp["x"].values.reshape(-1,1)
-        Y = df_temp["y"].values
+        X = df_all_temp["x"].values.reshape(-1,1)
+        Y = df_all_temp["y"].values
     
         try:
             model = LinearRegression()
@@ -427,8 +511,8 @@ with tab2:
         except:
             r2 = 0
     
-        pearson = df_temp["x"].corr(df_temp["y"])
-        spearman = df_temp["x"].corr(df_temp["y"], method="spearman")
+        pearson = df_all_temp["x"].corr(df_all_temp["y"])
+        spearman = df_all_temp["x"].corr(df_all_temp["y"], method="spearman")
     
         try:
             mi = mutual_info_regression(X, Y)[0]
@@ -449,11 +533,11 @@ with tab2:
     if len(resultados) == 0:
         st.warning("No hay suficientes datos para calcular correlaciones")
     else:
-        df_rank = pd.DataFrame(resultados).sort_values("Score", ascending=False)
-        st.dataframe(df_rank)
+        df_all_rank = pd.DataFrame(resultados).sort_values("Score", ascending=False)
+        st.dataframe(df_all_rank)
 
     fig_rank = px.bar(
-        df_rank,
+        df_all_rank,
         x="Score",
         y="Variable",
         orientation="h",
@@ -475,7 +559,7 @@ with tab3:
 
     st.subheader("Mapa de correlaciones")
 
-    corr = df[variables].corr(method="spearman")
+    corr = df_all[variables].corr(method="spearman")
 
     fig_heat = px.imshow(
         corr,
