@@ -36,7 +36,10 @@ def construir_columnas(df_raw, n_header_rows):
     # convertir todo a numérico (excepto Fecha)
     for c in df.columns:
         if c != "Fecha":
-            df[c] = pd.to_numeric(df[c], errors="coerce")
+            try:
+                df[c] = pd.to_numeric(df[c].squeeze(), errors="coerce")
+            except:
+                pass
 # ============================================
 # CONFIGURACIÓN GENERAL
 # ============================================
