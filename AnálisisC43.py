@@ -359,8 +359,15 @@ with tab1:
 
     for y in y_vars:
 
-        df_plot = df_filt[[x_var, y]].dropna()
-
+        df_plot = df[[x_var, y]].dropna()
+        for y in y_vars:
+        
+            df_plot = df[[x_var, y]].dropna()
+        
+            # ✅ DEBUG AQUÍ
+            st.write(f"{y} → puntos:", len(df_plot))
+            if len(df_plot) < 3:
+                continue
         if df_plot.empty:
             continue
 
