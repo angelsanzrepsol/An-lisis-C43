@@ -295,8 +295,19 @@ with tab1:
     if df[x_var].dropna().empty:
         st.warning("Variable sin datos válidos")
         st.stop()
-    xmin = float(df[x_var].min())
-    xmax = float(df[x_var].max())
+    serie = df[x_var].dropna()
+
+    if serie.empty:
+        st.warning(f"{x_var} no tiene datos válidos")
+        st.stop()
+    
+    xmin = float(serie.min())
+    xmax = float(serie.max())
+    
+    # evitar caso valores iguales
+    if xmin == xmax:
+        st.warning(f"{x_var} tiene valor constante")
+        st.stop()
 
     rx = st.slider(
         f"Rango {x_var}",
@@ -311,8 +322,16 @@ with tab1:
 
     for y in y_vars:
 
-        ymin = float(df_filt[y].min())
-        ymax = float(df_filt[y].max())
+        serie_y = df_filt[y].dropna()
+
+        if serie_y.empty:
+            continue
+        
+        ymin = float(serie_y.min())
+        ymax = float(serie_y.max())
+        
+        if ymin == ymax:
+            continue
 
         r = st.slider(
             f"Rango {y}",
@@ -469,22 +488,23 @@ with tab2:
         st.warning("No hay suficientes datos para calcular correlaciones")
     else:
         df_rank = pd.DataFrame(resultados).sort_values("Score", ascending=False)
+        
         st.dataframe(df_rank)
-
-    fig_rank = px.bar(
-        df_rank,
-        x="Score",
-        y="Variable",
-        orientation="h",
-        color="Score",
-        color_continuous_scale="YlOrBr"
-    )
-
-    fig_rank.update_layout(
-        yaxis=dict(autorange="reversed")
-    )
-
-    st.plotly_chart(fig_rank, use_container_width=True)
+    
+        fig_rank = px.bar(
+            df_rank,
+            x="Score",
+            y="Variable",
+            orientation="h",
+            color="Score",
+            color_continuous_scale="YlOrBr"
+        )
+    
+        fig_rank.update_layout(
+            yaxis=dict(autorange="reversed")
+        )
+    
+        st.plotly_chart(fig_rank, use_container_width=True)
 
 # ============================================
 # TAB 3 — HEATMAP
