@@ -33,6 +33,10 @@ def construir_columnas(df_raw, n_header_rows):
                 cols.append(" | ".join(partes))
 
     return cols
+    # convertir todo a numérico (excepto Fecha)
+    for c in df.columns:
+        if c != "Fecha":
+            df[c] = pd.to_numeric(df[c], errors="coerce")
 # ============================================
 # CONFIGURACIÓN GENERAL
 # ============================================
@@ -230,79 +234,12 @@ for sh in sheets_sel:
 
 df = pd.concat(dfs, axis=1).reset_index()
 # ============================================
-# CONSTRUIR NOMBRES DE COLUMNAS (3 niveles)
+# LIMPIEZA FINAL (MUY IMPORTANTE)
 # ============================================
 
-group = df_raw.iloc[0]
-name_long = df_raw.iloc[1]
-name_short = df_raw.iloc[2]
-
-cols = []
-
-for i,(g,n,s) in enumerate(zip(group,name_long,name_short)):
-
-    if i == 0:
-        cols.append("Fecha")
-
-    elif i == 1:
-        cols.append("Estado")
-
-    else:
-
-        parts = []
-
-        if pd.notna(g):
-            parts.append(str(g))
-
-        if pd.notna(n):
-            parts.append(str(n))
-
-        if pd.notna(s):
-            parts.append(str(s))
-
-        if len(parts) == 0:
-            cols.append(f"Var_{i}")
-        else:
-            cols.append(" | ".join(parts))
-
-# ============================================
-# DATOS
-# ============================================
-
-df = df_raw.iloc[4:].copy()
-df.columns = cols
-
-# ============================================
-# LIMPIEZA
-# ============================================
-
-df["Fecha"] = pd.to_datetime(df["Fecha"], errors="coerce").dt.normalize()
-
-# eliminar columnas completamente vacías
-df = df.dropna(axis=1, how="all")
-
-# eliminar columnas duplicadas
-df = df.loc[:, ~df.columns.duplicated()]
-
-# convertir columnas a numéricas de forma segura
-for c in df.columns[2:]:
-
-    try:
-        df[c] = pd.to_numeric(df[c].squeeze(), errors="coerce")
-    except:
-        pass
-
-# eliminar columnas vacías
-df = df.dropna(axis=1, how="all")
-
-# ============================================
-# FILTRO MARCHA / PARADA
-# ============================================
-
-estado = st.sidebar.selectbox(
-    "Estado de planta",
-    ["MARCHA","PARADA"]
-)
+for c in df.columns:
+    if c != "Fecha":
+        df[c] = pd.to_numeric(df[c], errors="coerce")
 
 variables = [c for c in df.columns if c != "Fecha"]
 
@@ -354,7 +291,10 @@ with tab1:
     # ============================================
 
     st.markdown("### Filtros")
-
+    
+    if df[x_var].dropna().empty:
+        st.warning("Variable sin datos válidos")
+        st.stop()
     xmin = float(df[x_var].min())
     xmax = float(df[x_var].max())
 
