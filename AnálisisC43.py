@@ -294,11 +294,7 @@ for c in df_all.columns[2:]:
 
 # eliminar columnas vacías
 df_all = df_all.dropna(axis=1, how="all")
-# ============================================
-# FILTRAR SOLO FECHAS EN MARCHA
-# ============================================
 
-df_all = df_all[df_all["Fecha"].isin(fechas_marcha)]
 # ============================================
 # FILTRO MARCHA / PARADA
 # ============================================
