@@ -235,7 +235,15 @@ for sh in sheets_sel:
 
     dfs.append(df_tmp)
 
-df = pd.concat(dfs, axis=1).reset_index()
+df = pd.concat(dfs, axis=1)
+
+# 🔥 APLASTAR COLUMNAS (MUY IMPORTANTE)
+df.columns = [str(c) for c in df.columns]
+
+# eliminar duplicadas
+df = df.loc[:, ~df.columns.duplicated()]
+
+df = df.reset_index()
 # ============================================
 # LIMPIEZA FINAL (MUY IMPORTANTE)
 # ============================================
@@ -453,12 +461,28 @@ with tab2:
 
     resultados = []
 
-    y_series = pd.to_numeric(df[y_obj].squeeze(), errors="coerce")
+    y_series = df[y_obj]
+
+    if not isinstance(y_series, pd.Series):
+        st.warning("Variable objetivo no válida")
+        st.stop()
+    
+    y_series = pd.to_numeric(y_series, errors="coerce")
     
     for col in x_rank:
     
-        x_series = pd.to_numeric(df[col].squeeze(), errors="coerce")
-    
+        try:
+            x_series = df[col]
+            
+            # si no es serie, saltar
+            if not isinstance(x_series, pd.Series):
+                continue
+        
+            x_series = pd.to_numeric(x_series, errors="coerce")
+        
+        except:
+            continue
+            
         df_temp = pd.DataFrame({
             "x": x_series,
             "y": y_series
