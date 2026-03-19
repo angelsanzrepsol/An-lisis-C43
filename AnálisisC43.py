@@ -239,7 +239,10 @@ df = pd.concat(dfs, axis=1).reset_index()
 
 for c in df.columns:
     if c != "Fecha":
-        df[c] = pd.to_numeric(df[c], errors="coerce")
+        try:
+            df[c] = pd.to_numeric(df[c].squeeze(), errors="coerce")
+        except:
+            pass
 
 variables = [c for c in df.columns if c != "Fecha"]
 
