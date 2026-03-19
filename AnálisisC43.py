@@ -277,7 +277,6 @@ df_all.columns = cols
 # ============================================
 
 df_all["Fecha"] = pd.to_datetime(df_all["Fecha"], errors="coerce").dt.normalize()
-fechas_marcha = pd.to_datetime(fechas_marcha, errors="coerce").dt.normalize()
 
 # eliminar columnas completamente vacías
 df_all = df_all.dropna(axis=1, how="all")
