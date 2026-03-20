@@ -282,7 +282,7 @@ tab_filtros, tab1, tab2, tab3 = st.tabs([
 with tab_filtros:
 
     st.subheader("Creador de filtros avanzado")
-
+    
     if df.empty:
         st.warning("No hay datos")
         st.stop()
@@ -307,8 +307,25 @@ with tab_filtros:
     if len(vars_sel) < 1:
         st.warning("Selecciona al menos una variable")
         st.stop()
-
-    df_work = df.copy()
+    st.markdown("### Filtro por fecha")
+    # asegurar tipo datetime
+    df["Fecha"] = pd.to_datetime(df["Fecha"])
+    
+    fecha_min = df["Fecha"].min()
+    fecha_max = df["Fecha"].max()
+        
+    rango_fecha = st.slider(
+            "Rango de fechas",
+            min_value=fecha_min,
+            max_value=fecha_max,
+            value=(fecha_min, fecha_max),
+            format="YYYY-MM-DD"
+        )
+    
+    df_work = df[
+        (df["Fecha"] >= rango_fecha[0]) &
+        (df["Fecha"] <= rango_fecha[1])
+    ].copy()
     df = df.copy()  # 🔥 defragmenta
     df["Fecha_num"] = df["Fecha"].astype("int64") / 1e9
     # ===============================
@@ -338,12 +355,17 @@ with tab_filtros:
         )
     
         filtro_temp[var] = r
-    df_work = df.copy()
+    df_work = df[
+        (df["Fecha"] >= rango_fecha[0]) &
+        (df["Fecha"] <= rango_fecha[1])
+    ].copy()
+    
     for var, (vmin, vmax) in filtro_temp.items():
         df_work = df_work[
             (df_work[var] >= vmin) &
             (df_work[var] <= vmax)
         ]
+    
     # ===============================
     # ESTADO DE EXCLUSIÓN
     # ===============================
@@ -431,6 +453,7 @@ with tab_filtros:
 
         st.session_state.filtros_guardados[nombre] = {
             "rangos": filtro_temp,
+            "fecha": [str(rango_fecha[0]), str(rango_fecha[1])],
             "excluidos": list(st.session_state.puntos_excluidos)
         }
 
@@ -562,7 +585,16 @@ with tab1:
     df_filtrado = df.copy()
 
     if filtro_sel != "(ninguno)":
-    
+        # aplicar fecha
+        if "fecha" in f:
+            f_ini = pd.to_datetime(f["fecha"][0])
+            f_fin = pd.to_datetime(f["fecha"][1])
+        
+            df_filtrado = df_filtrado[
+                (df_filtrado["Fecha"] >= f_ini) &
+                (df_filtrado["Fecha"] <= f_fin)
+            ]
+        
         f = st.session_state.filtros_guardados[filtro_sel]
     
         for var, (vmin, vmax) in f["rangos"].items():
@@ -706,7 +738,15 @@ with tab2:
     if filtro_sel != "(ninguno)":
     
         f = st.session_state.filtros_guardados[filtro_sel]
+        # fecha
+        if "fecha" in f:
+            f_ini = pd.to_datetime(f["fecha"][0])
+            f_fin = pd.to_datetime(f["fecha"][1])
     
+            df_rank_base = df_rank_base[
+                (df_rank_base["Fecha"] >= f_ini) &
+                (df_rank_base["Fecha"] <= f_fin)
+            ]
         for var, (vmin, vmax) in f["rangos"].items():
     
             if var in df_rank_base.columns:
