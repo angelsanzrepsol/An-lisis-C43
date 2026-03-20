@@ -275,49 +275,110 @@ tab_filtros, tab1, tab2, tab3 = st.tabs([
     "Ranking de correlaciones",
     "Mapa de correlaciones"
 ])
-# ============================================
-# TAB FILTROS
-# ============================================
+
 
 with tab_filtros:
 
-    st.subheader("Creador de filtros")
+    st.subheader("Creador de filtros avanzado")
 
     if df.empty:
         st.warning("No hay datos")
         st.stop()
 
+    # ===============================
+    # VARIABLES
+    # ===============================
     variables_num = [c for c in df.columns if c != "Fecha"]
 
-    filtro_temp = {}
+    x_var = st.selectbox("Variable X", variables_num, key="filtro_x")
 
-    for var in variables_num[:10]:  # limitamos para no explotar UI
+    y_var = st.selectbox(
+        "Variable Y",
+        [v for v in variables_num if v != x_var],
+        key="filtro_y"
+    )
 
-        serie = df[var].dropna()
+    df_work = df[[x_var, y_var]].dropna().copy()
 
-        if serie.empty:
-            continue
+    # ===============================
+    # SLIDERS
+    # ===============================
+    xmin, xmax = float(df_work[x_var].min()), float(df_work[x_var].max())
+    ymin, ymax = float(df_work[y_var].min()), float(df_work[y_var].max())
 
-        vmin = float(serie.min())
-        vmax = float(serie.max())
+    rx = st.slider("Rango X", xmin, xmax, (xmin, xmax))
+    ry = st.slider("Rango Y", ymin, ymax, (ymin, ymax))
 
-        r = st.slider(
-            var,
-            vmin,
-            vmax,
-            (vmin, vmax),
-            key=f"filtro_{var}"
+    df_work = df_work[
+        (df_work[x_var] >= rx[0]) & (df_work[x_var] <= rx[1]) &
+        (df_work[y_var] >= ry[0]) & (df_work[y_var] <= ry[1])
+    ]
+
+    # ===============================
+    # ESTADO DE EXCLUSIÓN
+    # ===============================
+    if "puntos_excluidos" not in st.session_state:
+        st.session_state.puntos_excluidos = set()
+
+    # ===============================
+    # GRÁFICO
+    # ===============================
+    fig = go.Figure()
+
+    fig.add_trace(
+        go.Scatter(
+            x=df_work[x_var],
+            y=df_work[y_var],
+            mode="markers",
+            customdata=df_work.index,
+            name="datos"
         )
+    )
 
-        filtro_temp[var] = r
+    event = st.plotly_chart(
+        fig,
+        use_container_width=True,
+        on_select="rerun"
+    )
 
+    # ===============================
+    # ELIMINAR PUNTOS
+    # ===============================
+    if event and event.selection and event.selection.points:
+
+        if st.button("Excluir puntos seleccionados"):
+
+            for p in event.selection.points:
+                idx = p["customdata"]
+                st.session_state.puntos_excluidos.add(idx)
+
+            st.rerun()
+
+    # aplicar exclusión
+    df_filtrado = df_work.drop(
+        index=[i for i in st.session_state.puntos_excluidos if i in df_work.index],
+        errors="ignore"
+    )
+
+    st.write("Puntos tras exclusión:", len(df_filtrado))
+
+    # ===============================
+    # GUARDAR FILTRO
+    # ===============================
     nombre = st.text_input("Nombre del filtro")
 
     if st.button("Guardar filtro"):
 
-        st.session_state.filtros_guardados[nombre] = filtro_temp
+        st.session_state.filtros_guardados[nombre] = {
+            "x_var": x_var,
+            "y_var": y_var,
+            "rx": rx,
+            "ry": ry,
+            "excluidos": list(st.session_state.puntos_excluidos)
+        }
 
         st.success(f"Filtro '{nombre}' guardado")
+
 # ============================================
 # TAB 1 — GRAFICADO
 # ============================================
@@ -381,7 +442,6 @@ with tab1:
     # ============================================
     # APLICAR FILTRO GUARDADO
     # ============================================
-    
     filtro_sel = st.selectbox(
         "Filtro guardado",
         ["(ninguno)"] + list(st.session_state.filtros_guardados.keys())
@@ -391,15 +451,29 @@ with tab1:
     
     if filtro_sel != "(ninguno)":
     
-        filtro = st.session_state.filtros_guardados[filtro_sel]
+        f = st.session_state.filtros_guardados[filtro_sel]
     
-        for var, (vmin, vmax) in filtro.items():
+        x_f = f["x_var"]
+        y_f = f["y_var"]
     
-            if var in df_filtrado.columns:
-                df_filtrado = df_filtrado[
-                    (df_filtrado[var] >= vmin) &
-                    (df_filtrado[var] <= vmax)
-                ]
+        rx = f["rx"]
+        ry = f["ry"]
+    
+        if x_f in df_filtrado.columns:
+            df_filtrado = df_filtrado[
+                (df_filtrado[x_f] >= rx[0]) & (df_filtrado[x_f] <= rx[1])
+            ]
+    
+        if y_f in df_filtrado.columns:
+            df_filtrado = df_filtrado[
+                (df_filtrado[y_f] >= ry[0]) & (df_filtrado[y_f] <= ry[1])
+            ]
+    
+        # excluir puntos
+        df_filtrado = df_filtrado.drop(
+            index=f.get("excluidos", []),
+            errors="ignore"
+        )
     df_filt = df[(df[x_var] >= rx[0]) & (df[x_var] <= rx[1])]
 
     rangos_y = {}
