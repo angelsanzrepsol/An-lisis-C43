@@ -7,8 +7,9 @@ import plotly.graph_objects as go
 import plotly.express as px
 from sklearn.linear_model import LinearRegression
 from sklearn.feature_selection import mutual_info_regression
-def construir_columnas(df_raw, n_header_rows):
 from streamlit_plotly_events import plotly_events
+
+def construir_columnas(df_raw, n_header_rows):
     headers = [df_raw.iloc[i] for i in range(n_header_rows)]
 
     cols = []
