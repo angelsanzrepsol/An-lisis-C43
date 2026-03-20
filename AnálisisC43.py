@@ -303,8 +303,32 @@ with tab_filtros:
     # ===============================
     # SLIDERS
     # ===============================
-    xmin, xmax = float(df_work[x_var].min()), float(df_work[x_var].max())
-    ymin, ymax = float(df_work[y_var].min()), float(df_work[y_var].max())
+    # limpiar NaN primero
+    df_work = df[[x_var, y_var]].dropna().copy()
+    
+    if df_work.empty:
+        st.warning("No hay datos válidos para esta combinación")
+        st.stop()
+    
+    xmin = df_work[x_var].min()
+    xmax = df_work[x_var].max()
+    ymin = df_work[y_var].min()
+    ymax = df_work[y_var].max()
+    
+    # comprobar NaN
+    if pd.isna(xmin) or pd.isna(xmax) or pd.isna(ymin) or pd.isna(ymax):
+        st.warning("Datos inválidos (NaN)")
+        st.stop()
+    
+    # evitar valores iguales
+    if xmin == xmax or ymin == ymax:
+        st.warning("Variable constante (no se puede filtrar)")
+        st.stop()
+    
+    xmin = float(xmin)
+    xmax = float(xmax)
+    ymin = float(ymin)
+    ymax = float(ymax)
 
     rx = st.slider("Rango X", xmin, xmax, (xmin, xmax))
     ry = st.slider("Rango Y", ymin, ymax, (ymin, ymax))
