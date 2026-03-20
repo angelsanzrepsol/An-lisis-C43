@@ -307,6 +307,7 @@ with tab_filtros:
         st.stop()
 
     df_work = df[vars_sel].dropna().copy()
+    df = df.copy()  # 🔥 defragmenta
     df["Fecha_num"] = df["Fecha"].astype("int64") / 1e9
     # ===============================
     # SLIDERS
@@ -364,6 +365,25 @@ with tab_filtros:
     # ===============================
     # GRÁFICO
     # ===============================
+    # ===============================
+    # SELECCIÓN PARA GRAFICAR
+    # ===============================
+    
+    if len(vars_sel) < 2:
+        st.warning("Selecciona al menos 2 variables")
+        st.stop()
+    
+    x_plot = st.selectbox(
+        "Eje X",
+        vars_sel,
+        key="plot_x"
+    )
+    
+    y_plot = st.selectbox(
+        "Eje Y",
+        [v for v in vars_sel if v != x_plot],
+        key="plot_y"
+    )
     df_plot = df_work[[x_plot, y_plot]].dropna()
 
     fig = go.Figure()
