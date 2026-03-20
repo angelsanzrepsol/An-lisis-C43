@@ -367,18 +367,17 @@ with tab_filtros:
         default=[v for v in vars_sel if v != x_plot][:2]
     )
     fig = go.Figure()
-
+    
     df_plot = df_work.copy()
-
+    
+    # aplicar exclusión previa
     if len(st.session_state.puntos_excluidos) > 0:
         df_plot = df_plot[~df_plot.index.isin(st.session_state.puntos_excluidos)]
+    
+    # crear trazas
     for var in y_vars_plot:
     
-        if var == x_plot:
-            continue
-    
-        df_temp = df_plot[[x_plot, var]].copy()
-        df_temp = df_temp.dropna()
+        df_temp = df_plot[[x_plot, var]].dropna()
     
         if df_temp.empty:
             continue
@@ -389,49 +388,34 @@ with tab_filtros:
                 y=df_temp[var],
                 mode="markers",
                 name=var,
-                customdata=df_temp.index.tolist() # 🔥 IMPORTANTE
+                customdata=df_temp.index  # 🔥 clave
             )
         )
-    st.plotly_chart(fig, use_container_width=True)
-    selected_points = plotly_events(
+    
+    # 👉 MOSTRAR GRÁFICA + CAPTURAR SELECCIÓN
+    event = st.plotly_chart(
         fig,
-        click_event=True,
-        select_event=True,
-        hover_event=False
-    )
-    if st.button("Excluir puntos seleccionados"):
-        for p in selected_points:
-            idx = p["customdata"]
-    
-            st.session_state.puntos_excluidos.add(idx)
-    
-        st.rerun()
-    st.markdown("### Excluir puntos por índice")
-
-    idx_input = st.text_input(
-        "Introduce índices a excluir (ej: 10,15,20)"
+        use_container_width=True,
+        on_select="rerun"
     )
     
-    if st.button("Excluir puntos"):
+    # 👉 BOTÓN EXCLUIR
+    if event and event.selection and event.selection.points:
     
-        try:
-            idxs = [int(i.strip()) for i in idx_input.split(",")]
+        if st.button("Excluir puntos seleccionados"):
     
-            st.session_state.puntos_excluidos.update(idxs)
+            for p in event.selection.points:
+                idx = p["customdata"]
     
-            st.success(f"{len(idxs)} puntos excluidos")
+                st.session_state.puntos_excluidos.add(idx)
     
             st.rerun()
-    
-        except:
-            st.error("Formato incorrecto")
   
     # aplicar exclusión
     df_filtrado = df_work.drop(
         index=st.session_state.puntos_excluidos,
         errors="ignore"
     )
-
     st.write("Puntos tras exclusión:", len(df_filtrado))
 
     # ===============================
