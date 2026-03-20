@@ -694,7 +694,30 @@ with tab1:
 with tab2:
 
     st.subheader("Ranking de correlaciones")
+    filtro_sel = st.selectbox(
+        "Filtro a aplicar",
+        ["(ninguno)"] + list(st.session_state.filtros_guardados.keys())
+    )
+    df_rank_base = df.copy()
 
+    if filtro_sel != "(ninguno)":
+    
+        f = st.session_state.filtros_guardados[filtro_sel]
+    
+        for var, (vmin, vmax) in f["rangos"].items():
+    
+            if var in df_rank_base.columns:
+                df_rank_base = df_rank_base[
+                    (df_rank_base[var] >= vmin) &
+                    (df_rank_base[var] <= vmax)
+                ]
+    
+        df_rank_base = df_rank_base.drop(
+            index=f.get("excluidos", []),
+            errors="ignore"
+        )
+    
+    st.write("Filas usadas:", len(df_rank_base))
     y_obj = st.selectbox(
         "Variable objetivo",
         variables
@@ -704,7 +727,7 @@ with tab2:
 
     resultados = []
 
-    y_series = df[y_obj]
+    y_series = df_rank_base[y_obj]
 
     if not isinstance(y_series, pd.Series):
         st.warning("Variable objetivo no válida")
@@ -715,7 +738,7 @@ with tab2:
     for col in x_rank:
     
         try:
-            x_series = df[col]
+            x_series = df_rank_base[col]
             
             # si no es serie, saltar
             if not isinstance(x_series, pd.Series):
