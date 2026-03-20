@@ -360,7 +360,10 @@ with tab_filtros:
         st.warning("Selecciona al menos 2 variables")
         st.stop()
     
-    x_plot = st.selectbox("Variable eje X", vars_sel)
+    x_plot = st.selectbox(
+        "Variable eje X",
+        ["Fecha"] + vars_sel
+    )
 
     y_vars_plot = st.multiselect(
         "Variables eje Y",
