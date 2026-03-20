@@ -13,5 +13,5 @@ xlsxwriter
 lightgbm
 xgboost
 catboost
-
+streamlit-plotly-events
 
