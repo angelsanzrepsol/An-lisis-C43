@@ -338,11 +338,14 @@ with tab_filtros:
         )
     
         filtro_temp[var] = r
-    
-        df_work = df_work[
-            (df_work[var] >= r[0]) &
-            (df_work[var] <= r[1])
-        ]
+        
+        df_work = df.copy()
+
+        for var, (vmin, vmax) in filtro_temp.items():
+            df_work = df_work[
+                (df_work[var] >= vmin) &
+                (df_work[var] <= vmax)
+            ]
     # ===============================
     # ESTADO DE EXCLUSIÓN
     # ===============================
@@ -377,7 +380,8 @@ with tab_filtros:
         if var == x_plot:
             continue
     
-        df_temp = df_plot[[x_plot, var]].dropna()
+        df_temp = df_plot[[x_plot, var]].copy()
+        df_temp = df_temp.dropna()
     
         if df_temp.empty:
             continue
