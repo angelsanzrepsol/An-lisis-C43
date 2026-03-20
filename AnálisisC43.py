@@ -311,8 +311,8 @@ with tab_filtros:
     # asegurar tipo datetime
     df["Fecha"] = pd.to_datetime(df["Fecha"])
     
-    fecha_min = df["Fecha"].min()
-    fecha_max = df["Fecha"].max()
+    fecha_min = df["Fecha"].min().to_pydatetime()
+    fecha_max = df["Fecha"].max().to_pydatetime()
         
     rango_fecha = st.slider(
             "Rango de fechas",
