@@ -392,7 +392,7 @@ with tab_filtros:
                 customdata=df_temp.index.tolist() # 🔥 IMPORTANTE
             )
         )
-    
+    st.plotly_chart(fig, use_container_width=True)
     selected_points = plotly_events(
         fig,
         click_event=True,
