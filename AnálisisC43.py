@@ -307,18 +307,17 @@ with tab_filtros:
         st.warning("Selecciona al menos una variable")
         st.stop()
 
-    df_work = df[vars_sel].dropna().copy()
+    df_work = df.copy()
     df = df.copy()  # 🔥 defragmenta
     df["Fecha_num"] = df["Fecha"].astype("int64") / 1e9
     # ===============================
     # SLIDERS
     # ===============================
     filtro_temp = {}
-    df_work = df.copy()
-    
+
     for var in vars_sel:
     
-        serie = df_work[var].dropna()
+        serie = df[var].dropna()
     
         if serie.empty:
             continue
@@ -338,14 +337,12 @@ with tab_filtros:
         )
     
         filtro_temp[var] = r
-        
-        df_work = df.copy()
-
-        for var, (vmin, vmax) in filtro_temp.items():
-            df_work = df_work[
-                (df_work[var] >= vmin) &
-                (df_work[var] <= vmax)
-            ]
+    df_work = df.copy()
+    for var, (vmin, vmax) in filtro_temp.items():
+        df_work = df_work[
+            (df_work[var] >= vmin) &
+            (df_work[var] <= vmax)
+        ]
     # ===============================
     # ESTADO DE EXCLUSIÓN
     # ===============================
