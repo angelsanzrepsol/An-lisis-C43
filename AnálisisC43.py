@@ -384,28 +384,19 @@ with tab_filtros:
         [v for v in vars_sel if v != x_plot],
         key="plot_y"
     )
-    fig = go.Figure()
+    df_plot = df_work[[x_plot, y_plot]].dropna()
 
-    for var in vars_sel:
+    fig = go.Figure()
     
-        if var == x_plot:
-            continue
-    
-        df_plot = df_work[[x_plot, var]].dropna()
-    
-        if df_plot.empty:
-            continue
-    
-        fig.add_trace(
-            go.Scatter(
-                x=df_plot[x_plot],
-                y=df_plot[var],
-                mode="markers",
-                name=var
-            )
+    fig.add_trace(
+        go.Scatter(
+            x=df_plot[x_plot],
+            y=df_plot[y_plot],
+            mode="markers",
+            customdata=df_plot.index,
+            name="datos"
         )
-    
-    st.plotly_chart(fig, use_container_width=True)
+    )
 
     event = st.plotly_chart(
         fig,
@@ -416,23 +407,16 @@ with tab_filtros:
     # ===============================
     # ELIMINAR PUNTOS
     # ===============================
-    st.markdown("### Excluir puntos manualmente")
+    if event and event.selection and event.selection.points:
 
-    df_edit = df_plot.copy()
-    df_edit["Excluir"] = False
-    
-    df_editado = st.data_editor(
-        df_edit,
-        use_container_width=True
-    )
-    
-    if st.button("Aplicar exclusión"):
-    
-        idx_excluir = df_editado[df_editado["Excluir"]].index
-    
-        st.session_state.puntos_excluidos.update(idx_excluir)
-    
-        st.rerun()
+        if st.button("Excluir puntos seleccionados"):
+
+            for p in event.selection.points:
+                idx = p["customdata"]
+                st.session_state.puntos_excluidos.add(idx)
+
+            st.rerun()
+
     # aplicar exclusión
     df_filtrado = df_work.drop(
         index=[i for i in st.session_state.puntos_excluidos if i in df_work.index],
