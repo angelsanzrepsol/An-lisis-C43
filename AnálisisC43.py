@@ -313,7 +313,7 @@ with tab_filtros:
     # SLIDERS
     # ===============================
     filtro_temp = {}
-    df_work = df.copy()
+    df_work = df[vars_sel].copy()
     
     for var in vars_sel:
     
@@ -347,21 +347,11 @@ with tab_filtros:
     # ===============================
     if "puntos_excluidos" not in st.session_state:
         st.session_state.puntos_excluidos = set()
-        st.markdown("### Visualización")
-
-        x_plot = st.selectbox(
-            "Eje X",
-            vars_sel,
-            key="plot_x"
-        )
         
-        y_plot = st.selectbox(
-            "Eje Y",
-            [v for v in vars_sel if v != x_plot],
-            key="plot_y"
-        )
-        x_plot = st.selectbox("Eje X", vars_sel)
-        y_plot = st.selectbox("Eje Y", [v for v in vars_sel if v != x_plot])
+    st.markdown("### Visualización")
+
+    x_plot = st.selectbox("Eje X", vars_sel)
+    y_plot = st.selectbox("Eje Y", [v for v in vars_sel if v != x_plot])
     # ===============================
     # GRÁFICO
     # ===============================
@@ -384,42 +374,57 @@ with tab_filtros:
         [v for v in vars_sel if v != x_plot],
         key="plot_y"
     )
-    df_plot = df_work[[x_plot, y_plot]].dropna()
-
     fig = go.Figure()
+
+    df_plot = df_work.drop(
+        index=st.session_state.puntos_excluidos,
+        errors="ignore"
+    ).copy()
     
-    fig.add_trace(
-        go.Scatter(
-            x=df_plot[x_plot],
-            y=df_plot[y_plot],
-            mode="markers",
-            customdata=df_plot.index,
-            name="datos"
+    for var in vars_sel:
+    
+        if var == x_plot:
+            continue
+    
+        df_temp = df_plot[[x_plot, var]].dropna()
+    
+        if df_temp.empty:
+            continue
+    
+        fig.add_trace(
+            go.Scatter(
+                x=df_temp[x_plot],
+                y=df_temp[var],
+                mode="markers",
+                name=var,
+                customdata=df_temp.index  # 🔥 IMPORTANTE
+            )
         )
+    
+    selected = st.plotly_chart(fig, use_container_width=True)
+    st.markdown("### Excluir puntos por índice")
+
+    idx_input = st.text_input(
+        "Introduce índices a excluir (ej: 10,15,20)"
     )
-
-    event = st.plotly_chart(
-        fig,
-        use_container_width=True,
-        on_select="rerun"
-    )
-
-    # ===============================
-    # ELIMINAR PUNTOS
-    # ===============================
-    if event and event.selection and event.selection.points:
-
-        if st.button("Excluir puntos seleccionados"):
-
-            for p in event.selection.points:
-                idx = p["customdata"]
-                st.session_state.puntos_excluidos.add(idx)
-
+    
+    if st.button("Excluir puntos"):
+    
+        try:
+            idxs = [int(i.strip()) for i in idx_input.split(",")]
+    
+            st.session_state.puntos_excluidos.update(idxs)
+    
+            st.success(f"{len(idxs)} puntos excluidos")
+    
             st.rerun()
-
+    
+        except:
+            st.error("Formato incorrecto")
+  
     # aplicar exclusión
     df_filtrado = df_work.drop(
-        index=[i for i in st.session_state.puntos_excluidos if i in df_work.index],
+        index=st.session_state.puntos_excluidos,
         errors="ignore"
     )
 
