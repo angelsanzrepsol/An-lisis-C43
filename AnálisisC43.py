@@ -314,7 +314,7 @@ with tab_filtros:
     # SLIDERS
     # ===============================
     filtro_temp = {}
-    df_work = df[vars_sel].copy()
+    df_work = df.copy()
     
     for var in vars_sel:
     
@@ -350,11 +350,6 @@ with tab_filtros:
         st.session_state.puntos_excluidos = set()
         
     st.markdown("### Visualización")
-
-    x_plot = st.selectbox("Eje X", vars_sel)
-    y_plot = st.selectbox("Eje Y", [v for v in vars_sel if v != x_plot])
-    # ===============================
-    # GRÁFICO
     # ===============================
     # ===============================
     # SELECCIÓN PARA GRAFICAR
@@ -373,11 +368,10 @@ with tab_filtros:
     )
     fig = go.Figure()
 
-    df_plot = df_work.drop(
-        index=st.session_state.puntos_excluidos,
-        errors="ignore"
-    ).copy()
-    
+    df_plot = df_work.copy()
+
+    if len(st.session_state.puntos_excluidos) > 0:
+        df_plot = df_plot[~df_plot.index.isin(st.session_state.puntos_excluidos)]
     for var in y_vars_plot:
     
         if var == x_plot:
@@ -405,9 +399,8 @@ with tab_filtros:
         hover_event=False
     )
     if st.button("Excluir puntos seleccionados"):
-    
         for p in selected_points:
-            idx = p["pointIndex"]
+            idx = p["customdata"]
     
             st.session_state.puntos_excluidos.add(idx)
     
