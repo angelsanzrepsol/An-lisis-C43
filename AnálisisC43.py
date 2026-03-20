@@ -363,16 +363,12 @@ with tab_filtros:
         st.warning("Selecciona al menos 2 variables")
         st.stop()
     
-    x_plot = st.selectbox(
-        "Eje X",
-        vars_sel,
-        key="plot_x"
-    )
-    
-    y_plot = st.selectbox(
-        "Eje Y",
+    x_plot = st.selectbox("Variable eje X", vars_sel)
+
+    y_vars_plot = st.multiselect(
+        "Variables eje Y",
         [v for v in vars_sel if v != x_plot],
-        key="plot_y"
+        default=[v for v in vars_sel if v != x_plot][:2]
     )
     fig = go.Figure()
 
@@ -381,7 +377,7 @@ with tab_filtros:
         errors="ignore"
     ).copy()
     
-    for var in vars_sel:
+    for var in y_vars_plot:
     
         if var == x_plot:
             continue
@@ -397,7 +393,7 @@ with tab_filtros:
                 y=df_temp[var],
                 mode="markers",
                 name=var,
-                customdata=df_temp.index  # 🔥 IMPORTANTE
+                customdata=df_temp.index.tolist() # 🔥 IMPORTANTE
             )
         )
     
@@ -407,6 +403,14 @@ with tab_filtros:
         select_event=True,
         hover_event=False
     )
+    if st.button("Excluir puntos seleccionados"):
+    
+        for p in selected_points:
+            idx = p["pointIndex"]
+    
+            st.session_state.puntos_excluidos.add(idx)
+    
+        st.rerun()
     st.markdown("### Excluir puntos por índice")
 
     idx_input = st.text_input(
