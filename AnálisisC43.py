@@ -8,6 +8,7 @@ import plotly.express as px
 from sklearn.linear_model import LinearRegression
 from sklearn.feature_selection import mutual_info_regression
 from streamlit_plotly_events import plotly_events
+import json
 
 def construir_columnas(df_raw, n_header_rows):
     headers = [df_raw.iloc[i] for i in range(n_header_rows)]
@@ -431,7 +432,62 @@ with tab_filtros:
         }
 
         st.success(f"Filtro '{nombre}' guardado")
+        st.markdown("### Filtros disponibles")
+        
+        if not st.session_state.filtros_guardados:
+            st.info("No hay filtros guardados")
+        
+        else:
+            for nombre, f in st.session_state.filtros_guardados.items():
+        
+                with st.expander(nombre):
+        
+                    st.write("Rangos:")
+                    st.json(f["rangos"])
+        
+                    if st.button("Eliminar", key=f"del_{nombre}"):
+                        del st.session_state.filtros_guardados[nombre]
+                        st.rerun()
+    st.markdown("### Exportar filtros")
 
+    if st.session_state.filtros_guardados:
+    
+        filtros_json = json.dumps(
+            st.session_state.filtros_guardados,
+            indent=4
+        )
+    
+        st.download_button(
+            "📥 Descargar filtros",
+            data=filtros_json,
+            file_name="filtros_c43.json",
+            mime="application/json"
+        )
+        
+    st.markdown("### Importar filtros")
+
+    filtro_file = st.file_uploader(
+        "Subir archivo JSON",
+        type=["json"]
+    )
+    
+    if filtro_file is not None:
+        try:
+            filtros_importados = json.load(filtro_file)
+    
+            if isinstance(filtros_importados, dict):
+    
+                for nombre, filtro in filtros_importados.items():
+                    st.session_state.filtros_guardados[nombre] = filtro
+    
+                st.success("Filtros importados correctamente")
+                st.rerun()
+    
+            else:
+                st.error("Formato incorrecto")
+    
+        except Exception as e:
+            st.error(f"Error leyendo archivo: {e}")
 # ============================================
 # TAB 1 — GRAFICADO
 # ============================================
@@ -509,6 +565,7 @@ with tab1:
         for var, (vmin, vmax) in f["rangos"].items():
     
             if var in df_filtrado.columns:
+    
                 df_filtrado = df_filtrado[
                     (df_filtrado[var] >= vmin) &
                     (df_filtrado[var] <= vmax)
