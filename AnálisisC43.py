@@ -132,7 +132,13 @@ file = st.sidebar.file_uploader(
     "Subir archivo",
     type=["xlsx","xls","csv"]
 )
+# ============================================
+# ESTADOS DE FILTROS
+# ============================================
 
+if "filtros_guardados" not in st.session_state:
+    st.session_state.filtros_guardados = {}
+    
 if file is None:
     st.info("Suba un archivo para comenzar")
     st.stop()
@@ -263,12 +269,55 @@ st.success(f"Datos cargados: {len(df)} filas | {len(variables)} variables")
 # TABS
 # ============================================
 
-tab1, tab2, tab3 = st.tabs([
+tab_filtros, tab1, tab2, tab3 = st.tabs([
+    "Creador de filtros",
     "Graficado",
     "Ranking de correlaciones",
     "Mapa de correlaciones"
 ])
+# ============================================
+# TAB FILTROS
+# ============================================
 
+with tab_filtros:
+
+    st.subheader("Creador de filtros")
+
+    if df.empty:
+        st.warning("No hay datos")
+        st.stop()
+
+    variables_num = [c for c in df.columns if c != "Fecha"]
+
+    filtro_temp = {}
+
+    for var in variables_num[:10]:  # limitamos para no explotar UI
+
+        serie = df[var].dropna()
+
+        if serie.empty:
+            continue
+
+        vmin = float(serie.min())
+        vmax = float(serie.max())
+
+        r = st.slider(
+            var,
+            vmin,
+            vmax,
+            (vmin, vmax),
+            key=f"filtro_{var}"
+        )
+
+        filtro_temp[var] = r
+
+    nombre = st.text_input("Nombre del filtro")
+
+    if st.button("Guardar filtro"):
+
+        st.session_state.filtros_guardados[nombre] = filtro_temp
+
+        st.success(f"Filtro '{nombre}' guardado")
 # ============================================
 # TAB 1 — GRAFICADO
 # ============================================
@@ -329,7 +378,28 @@ with tab1:
         xmax,
         (xmin, xmax)
     )
-
+    # ============================================
+    # APLICAR FILTRO GUARDADO
+    # ============================================
+    
+    filtro_sel = st.selectbox(
+        "Filtro guardado",
+        ["(ninguno)"] + list(st.session_state.filtros_guardados.keys())
+    )
+    
+    df_filtrado = df.copy()
+    
+    if filtro_sel != "(ninguno)":
+    
+        filtro = st.session_state.filtros_guardados[filtro_sel]
+    
+        for var, (vmin, vmax) in filtro.items():
+    
+            if var in df_filtrado.columns:
+                df_filtrado = df_filtrado[
+                    (df_filtrado[var] >= vmin) &
+                    (df_filtrado[var] <= vmax)
+                ]
     df_filt = df[(df[x_var] >= rx[0]) & (df[x_var] <= rx[1])]
 
     rangos_y = {}
@@ -373,7 +443,7 @@ with tab1:
 
     for y in y_vars:
 
-        df_plot = df[[x_var, y]].dropna()
+        df_plot = df_filtrado[[x_var, y]].dropna()
     
         # DEBUG
         st.write(f"{y} → puntos:", len(df_plot))
