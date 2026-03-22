@@ -83,8 +83,13 @@ def calcular_ranking(df_rank_base, y_obj, x_rank):
             "Variable": col,
             "Score": score
         })
-
-    return pd.DataFrame(resultados).sort_values("Score", ascending=False)
+    
+    df_res = pd.DataFrame(resultados)
+    
+    if df_res.empty or "Score" not in df_res.columns:
+        return pd.DataFrame(columns=["Variable", "Score"])
+    
+    return df_res.sort_values("Score", ascending=False)
 def construir_columnas(df_raw, n_header_rows):
     headers = [df_raw.iloc[i] for i in range(n_header_rows)]
 
@@ -571,8 +576,17 @@ with tab_filtros:
         "Subir archivo JSON",
         type=["json"]
     )
+    if filtro_file is None:
+        st.session_state.filtro_importado = False
+    if "filtro_importado" not in st.session_state:
+        st.session_state.filtro_importado = False
     
-    if filtro_file is not None:
+    filtro_file = st.file_uploader(
+        "Subir archivo JSON",
+        type=["json"]
+    )
+    
+    if filtro_file is not None and not st.session_state.filtro_importado:
         try:
             filtros_importados = json.load(filtro_file)
     
@@ -581,12 +595,12 @@ with tab_filtros:
                 for nombre, filtro in filtros_importados.items():
                     st.session_state.filtros_guardados[nombre] = filtro
     
+                st.session_state.filtro_importado = True  # 🔥 CLAVE
                 st.success("Filtros importados correctamente")
-                st.rerun()
     
             else:
                 st.error("Formato incorrecto")
-    
+                
         except Exception as e:
             st.error(f"Error leyendo archivo: {e}")
 # ============================================
@@ -808,34 +822,7 @@ with tab2:
         "Filtros a comparar",
         list(st.session_state.filtros_guardados.keys())
     )
-    df_rank_base = df.copy()
-
-    if filtro_sel != "(ninguno)":
-    
-        f = st.session_state.filtros_guardados[filtro_sel]
-        # fecha
-        if "fecha" in f:
-            f_ini = pd.to_datetime(f["fecha"][0])
-            f_fin = pd.to_datetime(f["fecha"][1])
-    
-            df_rank_base = df_rank_base[
-                (df_rank_base["Fecha"] >= f_ini) &
-                (df_rank_base["Fecha"] <= f_fin)
-            ]
-        for var, (vmin, vmax) in f["rangos"].items():
-    
-            if var in df_rank_base.columns:
-                df_rank_base = df_rank_base[
-                    (df_rank_base[var] >= vmin) &
-                    (df_rank_base[var] <= vmax)
-                ]
-    
-        df_rank_base = df_rank_base.drop(
-            index=f.get("excluidos", []),
-            errors="ignore"
-        )
-    
-    st.write("Filas usadas:", len(df_rank_base))
+  
     y_obj = st.selectbox(
         "Variable objetivo",
         variables
@@ -885,9 +872,10 @@ with tab2:
     # DESVIACIÓN VS GLOBAL
     # ============================================
     
-    for f_name in filtros_sel:
-        if f_name in df_compare.columns:
-            df_compare[f"Δ {f_name}"] = df_compare[f_name] - df_compare["GLOBAL"]
+    if df_compare is not None:
+        for f_name in filtros_sel:
+            if f_name in df_compare.columns:
+                df_compare[f"Δ {f_name}"] = df_compare[f_name] - df_compare["GLOBAL"]
     
     # ============================================
     # MOSTRAR RESULTADOS
