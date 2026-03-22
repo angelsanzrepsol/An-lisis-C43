@@ -581,11 +581,6 @@ with tab_filtros:
     if "filtro_importado" not in st.session_state:
         st.session_state.filtro_importado = False
     
-    filtro_file = st.file_uploader(
-        "Subir archivo JSON",
-        type=["json"]
-    )
-    
     if filtro_file is not None and not st.session_state.filtro_importado:
         try:
             filtros_importados = json.load(filtro_file)
