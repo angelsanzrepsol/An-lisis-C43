@@ -10,6 +10,81 @@ from sklearn.feature_selection import mutual_info_regression
 from streamlit_plotly_events import plotly_events
 import json
 
+# ============================================
+# FUNCIONES AUXILIARES (NUEVO)
+# ============================================
+
+def aplicar_filtro(df_base, filtro):
+    df_f = df_base.copy()
+
+    if "fecha" in filtro:
+        f_ini = pd.to_datetime(filtro["fecha"][0])
+        f_fin = pd.to_datetime(filtro["fecha"][1])
+
+        df_f = df_f[
+            (df_f["Fecha"] >= f_ini) &
+            (df_f["Fecha"] <= f_fin)
+        ]
+
+    for var, (vmin, vmax) in filtro["rangos"].items():
+        if var in df_f.columns:
+            df_f = df_f[
+                (df_f[var] >= vmin) &
+                (df_f[var] <= vmax)
+            ]
+
+    df_f = df_f.drop(
+        index=filtro.get("excluidos", []),
+        errors="ignore"
+    )
+
+    return df_f
+
+
+def calcular_ranking(df_rank_base, y_obj, x_rank):
+
+    resultados = []
+
+    y_series = pd.to_numeric(df_rank_base[y_obj], errors="coerce")
+
+    for col in x_rank:
+
+        x_series = pd.to_numeric(df_rank_base[col], errors="coerce")
+
+        df_temp = pd.DataFrame({
+            "x": x_series,
+            "y": y_series
+        }).dropna()
+
+        if len(df_temp) < 5:
+            continue
+
+        X = df_temp["x"].values.reshape(-1,1)
+        Y = df_temp["y"].values
+
+        try:
+            model = LinearRegression()
+            model.fit(X, Y)
+            r2 = model.score(X, Y)
+        except:
+            r2 = 0
+
+        pearson = df_temp["x"].corr(df_temp["y"])
+        spearman = df_temp["x"].corr(df_temp["y"], method="spearman")
+
+        try:
+            mi = mutual_info_regression(X, Y)[0]
+        except:
+            mi = 0
+
+        score = abs(pearson) + abs(spearman) + r2 + mi
+
+        resultados.append({
+            "Variable": col,
+            "Score": score
+        })
+
+    return pd.DataFrame(resultados).sort_values("Score", ascending=False)
 def construir_columnas(df_raw, n_header_rows):
     headers = [df_raw.iloc[i] for i in range(n_header_rows)]
 
@@ -729,9 +804,9 @@ with tab1:
 with tab2:
 
     st.subheader("Ranking de correlaciones")
-    filtro_sel = st.selectbox(
-        "Filtro a aplicar",
-        ["(ninguno)"] + list(st.session_state.filtros_guardados.keys())
+    filtros_sel = st.multiselect(
+        "Filtros a comparar",
+        list(st.session_state.filtros_guardados.keys())
     )
     df_rank_base = df.copy()
 
@@ -765,92 +840,73 @@ with tab2:
         "Variable objetivo",
         variables
     )
+    variables_rank = st.multiselect(
+        "Variables a analizar",
+        variables,
+        default=variables[:10]
+    )
+    x_rank = [v for v in variables_rank if v != y_obj]
 
-    x_rank = [v for v in variables if v != y_obj]
-
-    resultados = []
-
-    y_series = df_rank_base[y_obj]
-
-    if not isinstance(y_series, pd.Series):
-        st.warning("Variable objetivo no válida")
-        st.stop()
+    # ============================================
+    # ESCENARIOS (GLOBAL + FILTROS)
+    # ============================================
     
-    y_series = pd.to_numeric(y_series, errors="coerce")
+    escenarios = {}
     
-    for col in x_rank:
+    # GLOBAL
+    escenarios["GLOBAL"] = df.copy()
     
-        try:
-            x_series = df_rank_base[col]
-            
-            # si no es serie, saltar
-            if not isinstance(x_series, pd.Series):
-                continue
-        
-            x_series = pd.to_numeric(x_series, errors="coerce")
-        
-        except:
-            continue
-            
-        df_temp = pd.DataFrame({
-            "x": x_series,
-            "y": y_series
-        }).dropna()
+    # FILTROS
+    for f_name in filtros_sel:
+        f = st.session_state.filtros_guardados[f_name]
+        escenarios[f_name] = aplicar_filtro(df, f)
     
-        # basta con pocos puntos
-        if len(df_temp) < 5:
+    # ============================================
+    # CALCULAR RANKINGS
+    # ============================================
+    
+    df_compare = None
+    
+    for nombre, df_esc in escenarios.items():
+    
+        if len(df_esc) < 5:
             continue
     
-        X = df_temp["x"].values.reshape(-1,1)
-        Y = df_temp["y"].values
+        df_rank = calcular_ranking(df_esc, y_obj, x_rank)
     
-        try:
-            model = LinearRegression()
-            model.fit(X, Y)
-            r2 = model.score(X, Y)
-        except:
-            r2 = 0
+        df_rank = df_rank.rename(columns={"Score": nombre})
     
-        pearson = df_temp["x"].corr(df_temp["y"])
-        spearman = df_temp["x"].corr(df_temp["y"], method="spearman")
+        if df_compare is None:
+            df_compare = df_rank
+        else:
+            df_compare = df_compare.merge(df_rank, on="Variable", how="outer")
     
-        try:
-            mi = mutual_info_regression(X, Y)[0]
-        except:
-            mi = 0
+    # ============================================
+    # DESVIACIÓN VS GLOBAL
+    # ============================================
     
-        score = abs(pearson) + abs(spearman) + r2 + mi
+    for f_name in filtros_sel:
+        if f_name in df_compare.columns:
+            df_compare[f"Δ {f_name}"] = df_compare[f_name] - df_compare["GLOBAL"]
     
-        resultados.append({
-            "Variable": col,
-            "Pearson": pearson,
-            "Spearman": spearman,
-            "Mutual_Info": mi,
-            "R2": r2,
-            "Score": score
-        })
+    # ============================================
+    # MOSTRAR RESULTADOS
+    # ============================================
     
-    if len(resultados) == 0:
-        st.warning("No hay suficientes datos para calcular correlaciones")
+    if df_compare is None:
+        st.warning("No hay datos suficientes")
     else:
-        df_rank = pd.DataFrame(resultados).sort_values("Score", ascending=False)
-        
-        st.dataframe(df_rank)
     
-        fig_rank = px.bar(
-            df_rank,
-            x="Score",
+        st.dataframe(df_compare)
+    
+        fig = px.bar(
+            df_compare,
             y="Variable",
-            orientation="h",
-            color="Score",
-            color_continuous_scale="YlOrBr"
+            x=["GLOBAL"] + filtros_sel,
+            barmode="group"
         )
     
-        fig_rank.update_layout(
-            yaxis=dict(autorange="reversed")
-        )
-    
-        st.plotly_chart(fig_rank, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True)
 
 # ============================================
 # TAB 3 — HEATMAP
@@ -859,8 +915,12 @@ with tab2:
 with tab3:
 
     st.subheader("Mapa de correlaciones")
-
-    corr = df[variables].corr(method="spearman")
+    vars_heatmap = st.multiselect(
+        "Variables para el mapa",
+        variables,
+        default=variables[:15]
+    )
+    corr = df[vars_heatmap].corr(method="spearman")
 
     fig_heat = px.imshow(
         corr,
