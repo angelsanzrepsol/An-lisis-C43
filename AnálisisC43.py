@@ -345,6 +345,93 @@ for c in df.columns:
 
 variables = [c for c in df.columns if c != "Fecha"]
 # ============================================
+# GRUPOS DE VARIABLES
+# ============================================
+
+GRUPOS = {
+
+    # ---------------- GENERAL ----------------
+    "ALIMENTACIÓN": [
+        "607FI0007","607FI0041","607FC0001","607PDI002","607TI0004",
+        "607TC0007","607FC0010","607FI0033","607FI0090","607FI0032",
+        "607FC0091","607TI0090","607AI001A","607AI001B","607AI001C"
+    ],
+
+    "REACTOR C-02": [
+        "607FC0011","607FFC014","607FC0014","607FC0020","607FFC015",
+        "607FC0015","607FFI151","607FFI156","607PI0031","607PI0035",
+        "607PI0036","607PI0032","607PDI034","607PDI033","607PDI037",
+        "607TI0048","607TC0052","607TI0012","607TDI031","607TI0014",
+        "607TDI032","607TI0041"
+    ],
+
+    "SEPARACIÓN HDT": [
+        "607TI0015","607TC0061","607TI0059","607PI0042","607FC0016",
+        "607DI0001","607TI0065","607PC055B","607FC0023","607FI0024"
+    ],
+
+    "ABSORBER AMINAR": [
+        "607FC0027","607FI0115","607TDI071","607PDI061","607PI0060","607FC0030"
+    ],
+
+    "STRIPPER C-008 / C-009": [
+        "607TI0102","607FC0034","607PC0087","607TI0100","607FC0038",
+        "607PI0096","607TI0103","607FI0037","607TI0099","607FC0043"
+    ],
+
+    "REACTOR C-12": [
+        "607TI0119","607TI0121","607TI0420","607TI0421","607PI0118",
+        "607TC0147","607TI0145","607TDI131","607TI0148","607PI0120",
+        "607PI0119","607PDI121","607FFI157"
+    ],
+
+    "SEPARACIÓN HDI": [
+        "607TC0111","607TI0161","607PI0124","607FC0047","607TI0163",
+        "607PC129A","607FC0048","607FC0049"
+    ],
+
+    "STRIPPER C-016/C-017": [
+        "607TI0171","607FC0051","607TI0169","607PC0131","607PC0131.OP",
+        "607TI0170","607FC0055","607PI0138","607TI0177","607FI0053",
+        "607TI0172","607FC0052"
+    ],
+
+    "STRIPPER C-18/C-19": [
+        "607TI0187","607TI0186","607TI0188","607TI0183","607TI0185",
+        "607TC0189","607TI0184","607TI0180","607TI0460","607TI0461",
+        "607FC0056","607FC0101","607PC0149","607PI0147","607PDI151",
+        "607PI0154","607FC0059","607DUTYF2","607PV149B"
+    ],
+
+    "EXTRACCIONES": [
+        "607FC0061","607FC0061.OP","607FC0062","607FC0062.OP",
+        "607FC0067","607FC0067.OP"
+    ]
+}
+# ============================================
+# EXPANDIR GRUPOS → VARIABLES REALES
+# ============================================
+
+def expandir_grupos(seleccion, variables_df):
+    resultado = []
+
+    for item in seleccion:
+
+        # si es grupo
+        if item in GRUPOS:
+            tags = GRUPOS[item]
+
+            for col in variables_df:
+                for tag in tags:
+                    if tag in col.upper():
+                        resultado.append(col)
+
+        # si es variable normal
+        else:
+            resultado.append(item)
+
+    return list(set(resultado))
+# ============================================
 # MAPA JERÁRQUICO DE VARIABLES
 # ============================================
 
@@ -400,11 +487,14 @@ with tab_filtros:
     
     variables_all = [c for c in df.columns if c != "Fecha"]
     
-    vars_sel = st.multiselect(
-        "Variables para construir el filtro",
-        variables_all,
-        default=variables_all[:2]
+    opciones = list(GRUPOS.keys()) + variables_all
+    
+    seleccion = st.multiselect(
+        "Variables o grupos",
+        opciones
     )
+    
+    vars_sel = expandir_grupos(seleccion, variables_all)
     
     if len(vars_sel) < 1:
         st.warning("Selecciona al menos una variable")
@@ -633,12 +723,14 @@ with tab1:
         variables
     )
 
-    y_vars = st.multiselect(
-        "Variables Y",
-        [v for v in variables if v != x_var],
-        default=[v for v in variables if v != x_var][:2]
-    )
+    opciones = list(GRUPOS.keys()) + variables
 
+    seleccion_y = st.multiselect(
+        "Variables Y o grupos",
+        opciones
+    )
+    
+    y_vars = expandir_grupos(seleccion_y, variables)
     color_var = st.selectbox(
         "Gradiente de color",
         ["(ninguna)"] + variables
@@ -844,11 +936,14 @@ with tab2:
         "Variable objetivo",
         variables
     )
-    variables_rank = st.multiselect(
-        "Variables a analizar",
-        variables,
-        default=variables[:10]
+    opciones = list(GRUPOS.keys()) + variables
+
+    seleccion_rank = st.multiselect(
+        "Variables o grupos",
+        opciones
     )
+    
+    variables_rank = expandir_grupos(seleccion_rank, variables)
     x_rank = [v for v in variables_rank if v != y_obj]
 
     # ============================================
@@ -965,11 +1060,14 @@ with tab2:
 with tab3:
 
     st.subheader("Mapa de correlaciones")
-    vars_heatmap = st.multiselect(
-        "Variables para el mapa",
-        variables,
-        default=variables[:15]
+    opciones = list(GRUPOS.keys()) + variables
+
+    seleccion_heat = st.multiselect(
+        "Variables o grupos",
+        opciones
     )
+    
+    vars_heatmap = expandir_grupos(seleccion_heat, variables)
     corr = df[vars_heatmap].corr(method="spearman")
 
     fig_heat = px.imshow(
