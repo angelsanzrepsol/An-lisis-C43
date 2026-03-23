@@ -831,7 +831,8 @@ with tab1:
             f"Rango {y}",
             ymin,
             ymax,
-            (ymin, ymax)
+            (ymin, ymax),
+            key=f"slider_grafico_{y}"
         )
 
         rangos_y[y] = r
