@@ -326,8 +326,13 @@ for sh in sheets_sel:
     col_fecha = None
 
     if "Fecha" not in df_tmp.columns:
-        continue
-  
+        st.warning(f"{sh}: no tiene columna Fecha → se intenta usar la primera columna")
+        
+        # intentar usar primera columna como fecha
+        df_tmp = df_tmp.rename(columns={
+            df_tmp.columns[0]: "Fecha"
+        })
+      
     if col_fecha is None:
         continue
     
