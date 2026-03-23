@@ -417,7 +417,6 @@ def expandir_grupos(seleccion, variables_df):
 
     for item in seleccion:
 
-        # si es grupo
         if item in GRUPOS:
             tags = GRUPOS[item]
 
@@ -425,12 +424,13 @@ def expandir_grupos(seleccion, variables_df):
                 for tag in tags:
                     if tag in col.upper():
                         resultado.append(col)
-
-        # si es variable normal
         else:
             resultado.append(item)
 
-    return list(set(resultado))
+    # quitar duplicados manteniendo orden
+    resultado_unico = list(dict.fromkeys(resultado))
+
+    return resultado_unico
 # ============================================
 # MAPA JERÁRQUICO DE VARIABLES
 # ============================================
@@ -737,7 +737,7 @@ with tab1:
         "Gradiente de color",
         ["(ninguna)"] + variables
     )
-
+    y_vars = [y for y in y_vars if y != x_var]
     if color_var == "(ninguna)":
         color_var = None
 
@@ -854,7 +854,12 @@ with tab1:
 
     for y in y_vars:
 
-        df_plot = df_filtrado[[x_var, y]].dropna()
+        cols_plot = list(dict.fromkeys([x_var, y]))  # evita duplicados
+
+        df_plot = df_filtrado[cols_plot].dropna()
+        
+        if len(cols_plot) < 2:
+            continue
     
         # DEBUG
         st.write(f"{y} → puntos:", len(df_plot))
