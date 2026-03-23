@@ -240,7 +240,32 @@ cols_general = construir_columnas_multinivel(df_general_raw, 5)
 
 df_general = df_general_raw.iloc[5:].copy()
 df_general.columns = cols_general
+# ============================================
+# DETECTAR COLUMNAS CLAVE (Fecha / Estado)
+# ============================================
 
+col_fecha = None
+col_estado = None
+
+for c in df_general.columns:
+    if any("Fecha" in str(x) for x in c):
+        col_fecha = c
+    if any("Estado" in str(x) for x in c):
+        col_estado = c
+
+if col_fecha is None:
+    st.error("No se encontró columna Fecha")
+    st.stop()
+
+if col_estado is None:
+    st.error("No se encontró columna Estado")
+    st.stop()
+
+# renombrar
+df_general = df_general.rename(columns={
+    col_fecha: "Fecha",
+    col_estado: "Estado"
+})
 df_general["Fecha"] = pd.to_datetime(df_general["Fecha"], errors="coerce").dt.normalize()
 df_general["Estado"] = df_general["Estado"].astype(str).str.upper()
 
@@ -313,7 +338,18 @@ for sh in sheets_sel:
 
     df_tmp = df_raw.iloc[n_header:].copy()
     df_tmp.columns = cols
+    col_fecha = None
 
+    for c in df_tmp.columns:
+        if any("Fecha" in str(x) for x in c):
+            col_fecha = c
+    
+    if col_fecha is None:
+        continue
+    
+    df_tmp = df_tmp.rename(columns={
+        col_fecha: "Fecha"
+    })
     df_tmp["Fecha"] = pd.to_datetime(df_tmp["Fecha"], errors="coerce").dt.normalize()
 
     df_tmp = df_tmp[df_tmp["Fecha"].isin(fechas_validas)]
