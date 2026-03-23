@@ -332,6 +332,8 @@ df.columns = [str(c) for c in df.columns]
 df = df.loc[:, ~df.columns.duplicated()]
 
 df = df.reset_index()
+# crear fecha numérica SIEMPRE
+df["Fecha_num"] = df["Fecha"].astype("int64") / 1e9
 # ============================================
 # LIMPIEZA FINAL (MUY IMPORTANTE)
 # ============================================
@@ -343,7 +345,7 @@ for c in df.columns:
         except:
             pass
 
-variables = [c for c in df.columns if c != "Fecha"]
+variables = [c for c in df.columns if c != "Fecha"] + ["Fecha_num"]
 # ============================================
 # GRUPOS DE VARIABLES
 # ============================================
@@ -791,7 +793,7 @@ with tab1:
 
     x_var = st.selectbox(
         "Variable eje X",
-        variables
+        ["Fecha"] + variables
     )
 
     opciones = list(GRUPOS.keys()) + variables
@@ -826,24 +828,44 @@ with tab1:
         st.stop()
     serie = df[x_var].dropna()
 
-    if serie.empty:
-        st.warning(f"{x_var} no tiene datos válidos")
-        st.stop()
+    if x_var == "Fecha":
+        xmin = serie.min()
+        xmax = serie.max()
     
-    xmin = float(serie.min())
-    xmax = float(serie.max())
+        rx = st.slider(
+            f"Rango {x_var}",
+            min_value=xmin.to_pydatetime(),
+            max_value=xmax.to_pydatetime(),
+            value=(xmin.to_pydatetime(), xmax.to_pydatetime()),
+            format="YYYY-MM-DD",
+            key="slider_fecha_x"
+        )
+    
+        df_filt = df[
+            (df[x_var] >= rx[0]) & (df[x_var] <= rx[1])
+        ]
+    
+    else:
+        xmin = float(serie.min())
+        xmax = float(serie.max())
+    
+        rx = st.slider(
+            f"Rango {x_var}",
+            xmin,
+            xmax,
+            (xmin, xmax),
+            key=f"slider_x_{x_var}"
+        )
+    
+        df_filt = df[
+            (df[x_var] >= rx[0]) & (df[x_var] <= rx[1])
+        ]
     
     # evitar caso valores iguales
     if xmin == xmax:
         st.warning(f"{x_var} tiene valor constante")
         st.stop()
 
-    rx = st.slider(
-        f"Rango {x_var}",
-        xmin,
-        xmax,
-        (xmin, xmax)
-    )
     # ============================================
     # APLICAR FILTRO GUARDADO
     # ============================================
