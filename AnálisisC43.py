@@ -310,12 +310,12 @@ dfs = []
 
 for sh in sheets_sel:
 
+    st.write("Procesando hoja:", sh)
+
     df_raw = pd.read_excel(xls, sheet_name=sh, header=None)
 
     if sh == "General":
         n_header = 5
-    elif "SGL" in sh:
-        n_header = 3
     else:
         n_header = 3
 
@@ -323,44 +323,33 @@ for sh in sheets_sel:
 
     df_tmp = df_raw.iloc[n_header:].copy()
     df_tmp.columns = cols
-    col_fecha = None
 
+    # 🔥 FORZAR FECHA SIEMPRE
     if "Fecha" not in df_tmp.columns:
-        st.warning(f"{sh}: no tiene columna Fecha → se intenta usar la primera columna")
-        
-        # intentar usar primera columna como fecha
         df_tmp = df_tmp.rename(columns={
             df_tmp.columns[0]: "Fecha"
         })
-      
-    if col_fecha is None:
-        continue
-    
-    df_tmp = df_tmp.rename(columns={
-        col_fecha: "Fecha"
-    })
-    # convertir fecha
+
+    # 🔥 INTENTAR PARSEAR
     df_tmp["Fecha"] = pd.to_datetime(df_tmp["Fecha"], errors="coerce")
-    
-    # contar válidas
-    n_valid = df_tmp["Fecha"].notna().sum()
-    
-    if n_valid < 5:
-        st.warning(f"{sh}: pocas fechas válidas ({n_valid}) → se usa índice como fallback")
-        
-        # usar índice como fecha artificial
-        df_tmp["Fecha"] = pd.RangeIndex(start=0, stop=len(df_tmp), step=1)
-    else:
-        df_tmp["Fecha"] = df_tmp["Fecha"].dt.normalize()
-        st.warning(f"{sh}: sin fechas válidas → se omite")
-        continue
-    df_tmp = df_tmp[df_tmp["Fecha"].isin(fechas_validas)]
+
+    # 🔥 SI FALLA → USAR ÍNDICE
+    if df_tmp["Fecha"].notna().sum() < 5:
+        st.warning(f"{sh}: usando índice como Fecha")
+        df_tmp["Fecha"] = pd.RangeIndex(len(df_tmp))
+
+    # 🔥 FILTRO FECHAS SOLO SI SON DATETIME
+    if pd.api.types.is_datetime64_any_dtype(df_tmp["Fecha"]):
+        df_tmp = df_tmp[df_tmp["Fecha"].isin(fechas_validas)]
 
     df_tmp = df_tmp.set_index("Fecha")
-    df_tmp = df_tmp.add_prefix(f"{sh} | ")
+
+    # 🔥 PREFIJO (IMPORTANTE)
+    df_tmp.columns = [f"{sh} | {c}" for c in df_tmp.columns]
+
+    st.write("AÑADIENDO:", sh, "filas:", len(df_tmp))
 
     dfs.append(df_tmp)
-
 df = pd.concat(dfs, axis=1)
 
 # eliminar duplicadas
