@@ -991,9 +991,16 @@ with tab1:
 
         if len(df_plot) > 2:
 
-            x = df_plot[x_var].values
-            yy = df_plot[y].values
-
+            x = pd.to_numeric(df_plot[x_var], errors="coerce").values
+            yy = pd.to_numeric(df_plot[y], errors="coerce").values
+            mask = ~np.isnan(x) & ~np.isnan(yy)
+            x = x[mask]
+            yy = yy[mask]
+            
+            if len(x) < 3:
+                continue
+            if x_var == "Fecha":
+                continue
             model = LinearRegression()
             model.fit(x.reshape(-1,1), yy)
 
