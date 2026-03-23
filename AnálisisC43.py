@@ -491,7 +491,8 @@ with tab_filtros:
     
     seleccion = st.multiselect(
         "Variables o grupos",
-        opciones
+        opciones,
+        key="filtros_vars"
     )
     
     vars_sel = expandir_grupos(seleccion, variables_all)
@@ -727,7 +728,8 @@ with tab1:
 
     seleccion_y = st.multiselect(
         "Variables Y o grupos",
-        opciones
+        opciones,
+        key="grafico_vars"
     )
     
     y_vars = expandir_grupos(seleccion_y, variables)
@@ -940,7 +942,8 @@ with tab2:
 
     seleccion_rank = st.multiselect(
         "Variables o grupos",
-        opciones
+        opciones,
+        key="ranking_vars"
     )
     
     variables_rank = expandir_grupos(seleccion_rank, variables)
@@ -1064,7 +1067,8 @@ with tab3:
 
     seleccion_heat = st.multiselect(
         "Variables o grupos",
-        opciones
+        opciones,
+        key="heatmap_vars"
     )
     
     vars_heatmap = expandir_grupos(seleccion_heat, variables)
