@@ -98,6 +98,14 @@ def construir_columnas_multinivel(df_raw, n_header_rows):
 
     for col_idx in range(len(df_raw.columns)):
 
+        # 🔥 FORZAR FECHA Y ESTADO
+        if col_idx == 0:
+            columnas.append("Fecha")
+            continue
+        elif col_idx == 1:
+            columnas.append("Estado")
+            continue
+
         niveles = []
 
         for h in headers:
@@ -107,7 +115,7 @@ def construir_columnas_multinivel(df_raw, n_header_rows):
             else:
                 niveles.append("")
 
-        # limpiar jerarquía (propagar valores hacia abajo)
+        # propagar valores vacíos hacia abajo
         for i in range(1, len(niveles)):
             if niveles[i] == "":
                 niveles[i] = niveles[i-1]
