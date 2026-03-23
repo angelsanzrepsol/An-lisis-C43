@@ -325,7 +325,7 @@ for sh in sheets_sel:
 
 df = pd.concat(dfs, axis=1)
 
-# 🔥 APLASTAR COLUMNAS (MUY IMPORTANTE)
+# APLASTAR COLUMNAS 
 df.columns = [str(c) for c in df.columns]
 
 # eliminar duplicadas
@@ -345,7 +345,7 @@ for c in df.columns:
 
 variables = [c for c in df.columns if c != "Fecha"]
 # ============================================
-# MAPA JERÁRQUICO DE VARIABLES 🔥
+# MAPA JERÁRQUICO DE VARIABLES
 # ============================================
 
 mapa_variables = {}
@@ -428,7 +428,7 @@ with tab_filtros:
         (df["Fecha"] >= rango_fecha[0]) &
         (df["Fecha"] <= rango_fecha[1])
     ].copy()
-    df = df.copy()  # 🔥 defragmenta
+    df = df.copy() 
     df["Fecha_num"] = df["Fecha"].astype("int64") / 1e9
     # ===============================
     # SLIDERS
@@ -516,18 +516,18 @@ with tab_filtros:
                 y=df_temp[var],
                 mode="markers",
                 name=var,
-                customdata=df_temp.index  # 🔥 clave
+                customdata=df_temp.index  
             )
         )
     
-    # 👉 MOSTRAR GRÁFICA + CAPTURAR SELECCIÓN
+    # MOSTRAR GRÁFICA + CAPTURAR SELECCIÓN
     event = st.plotly_chart(
         fig,
         use_container_width=True,
         on_select="rerun"
     )
     
-    # 👉 BOTÓN EXCLUIR
+    # BOTÓN EXCLUIR
     if event and event.selection and event.selection.points:
     
         if st.button("Excluir puntos seleccionados"):
@@ -586,7 +586,7 @@ with tab_filtros:
         )
     
         st.download_button(
-            "📥 Descargar filtros",
+            " Descargar filtros",
             data=filtros_json,
             file_name="filtros_c43.json",
             mime="application/json"
@@ -612,7 +612,7 @@ with tab_filtros:
                 for nombre, filtro in filtros_importados.items():
                     st.session_state.filtros_guardados[nombre] = filtro
     
-                st.session_state.filtro_importado = True  # 🔥 CLAVE
+                st.session_state.filtro_importado = True
                 st.success("Filtros importados correctamente")
     
             else:
