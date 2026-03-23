@@ -877,18 +877,18 @@ with tab1:
     df_filtrado = df.copy()
 
     if filtro_sel != "(ninguno)":
+
+        f = st.session_state.filtros_guardados[filtro_sel]
+    
         # aplicar fecha
         if "fecha" in f:
             f_ini = pd.to_datetime(f["fecha"][0])
             f_fin = pd.to_datetime(f["fecha"][1])
-        
+    
             df_filtrado = df_filtrado[
                 (df_filtrado["Fecha"] >= f_ini) &
                 (df_filtrado["Fecha"] <= f_fin)
             ]
-        
-        f = st.session_state.filtros_guardados[filtro_sel]
-    
         for var, (vmin, vmax) in f["rangos"].items():
     
             if var in df_filtrado.columns:
