@@ -90,31 +90,31 @@ def calcular_ranking(df_rank_base, y_obj, x_rank):
         return pd.DataFrame(columns=["Variable", "Score"])
     
     return df_res.sort_values("Score", ascending=False)
-def construir_columnas(df_raw, n_header_rows):
+def construir_columnas_multinivel(df_raw, n_header_rows):
+
     headers = [df_raw.iloc[i] for i in range(n_header_rows)]
 
-    cols = []
+    columnas = []
 
     for col_idx in range(len(df_raw.columns)):
 
-        partes = []
+        niveles = []
 
         for h in headers:
             val = h[col_idx]
             if pd.notna(val):
-                partes.append(str(val))
-
-        if col_idx == 0:
-            cols.append("Fecha")
-        elif col_idx == 1:
-            cols.append("Estado")
-        else:
-            if len(partes) == 0:
-                cols.append(f"Var_{col_idx}")
+                niveles.append(str(val).strip())
             else:
-                cols.append(" | ".join(partes))
+                niveles.append("")
 
-    return cols
+        # limpiar jerarquía (propagar valores hacia abajo)
+        for i in range(1, len(niveles)):
+            if niveles[i] == "":
+                niveles[i] = niveles[i-1]
+
+        columnas.append(tuple(niveles))
+
+    return columnas
     # convertir todo a numérico (excepto Fecha)
     for c in df.columns:
         if c != "Fecha":
@@ -236,7 +236,7 @@ xls = pd.ExcelFile(file)
 
 df_general_raw = pd.read_excel(xls, sheet_name="General", header=None)
 
-cols_general = construir_columnas(df_general_raw, 5)
+cols_general = construir_columnas_multinivel(df_general_raw, 5)
 
 df_general = df_general_raw.iloc[5:].copy()
 df_general.columns = cols_general
@@ -309,7 +309,7 @@ for sh in sheets_sel:
     else:
         n_header = 3
 
-    cols = construir_columnas(df_raw, n_header)
+    cols = construir_columnas_multinivel(df_raw, n_header)
 
     df_tmp = df_raw.iloc[n_header:].copy()
     df_tmp.columns = cols
@@ -324,9 +324,6 @@ for sh in sheets_sel:
     dfs.append(df_tmp)
 
 df = pd.concat(dfs, axis=1)
-
-# 🔥 APLASTAR COLUMNAS (MUY IMPORTANTE)
-df.columns = [str(c) for c in df.columns]
 
 # eliminar duplicadas
 df = df.loc[:, ~df.columns.duplicated()]
@@ -344,29 +341,25 @@ for c in df.columns:
             pass
 
 variables = [c for c in df.columns if c != "Fecha"]
-# ============================================
-# MAPA JERÁRQUICO DE VARIABLES 🔥
-# ============================================
-
 mapa_variables = {}
 
 for col in variables:
-    
-    partes = col.split(" | ")
-    
-    if len(partes) < 2:
-        continue
-    
-    nivel1 = partes[1] if len(partes) > 1 else "Otros"
-    nivel2 = partes[2] if len(partes) > 2 else "General"
+
+    # col es una tupla
+    nivel1 = col[0] if len(col) > 0 else "Otros"
+    nivel2 = col[1] if len(col) > 1 else "General"
+    nivel3 = col[2] if len(col) > 2 else "Detalle"
 
     if nivel1 not in mapa_variables:
         mapa_variables[nivel1] = {}
 
     if nivel2 not in mapa_variables[nivel1]:
-        mapa_variables[nivel1][nivel2] = []
+        mapa_variables[nivel1][nivel2] = {}
 
-    mapa_variables[nivel1][nivel2].append(col)
+    if nivel3 not in mapa_variables[nivel1][nivel2]:
+        mapa_variables[nivel1][nivel2][nivel3] = []
+
+    mapa_variables[nivel1][nivel2][nivel3].append(col)
 st.success(f"Datos cargados: {len(df)} filas | {len(variables)} variables")
 
 # ============================================
@@ -844,50 +837,63 @@ with tab2:
         "Variable objetivo",
         variables
     )
-    st.markdown("### Selección avanzada de variables")
-
     modo = st.radio(
-        "Modo de selección",
-        ["Manual", "Por grupo", "Por subgrupo"]
+    "Modo selección",
+    ["Nivel 1", "Nivel 2", "Nivel 3", "Manual"]
     )
     
     variables_rank = []
     
-    if modo == "Manual":
+    if modo == "Nivel 1":
+    
+        lvl1 = st.multiselect(
+            "Seleccionar planta / bloque",
+            list(mapa_variables.keys())
+        )
+    
+        for g in lvl1:
+            for sub in mapa_variables[g]:
+                for sub2 in mapa_variables[g][sub]:
+                    variables_rank.extend(mapa_variables[g][sub][sub2])
+    
+    
+    elif modo == "Nivel 2":
+    
+        lvl1 = st.selectbox("Nivel 1", list(mapa_variables.keys()))
+    
+        lvl2 = st.multiselect(
+            "Nivel 2",
+            list(mapa_variables[lvl1].keys())
+        )
+    
+        for sub in lvl2:
+            for sub2 in mapa_variables[lvl1][sub]:
+                variables_rank.extend(mapa_variables[lvl1][sub][sub2])
+    
+    
+    elif modo == "Nivel 3":
+    
+        lvl1 = st.selectbox("Nivel 1", list(mapa_variables.keys()))
+        lvl2 = st.selectbox("Nivel 2", list(mapa_variables[lvl1].keys()))
+    
+        lvl3 = st.multiselect(
+            "Nivel 3",
+            list(mapa_variables[lvl1][lvl2].keys())
+        )
+    
+        for sub in lvl3:
+            variables_rank.extend(mapa_variables[lvl1][lvl2][sub])
+    
+    
+    else:
     
         variables_rank = st.multiselect(
-            "Seleccionar variables",
+            "Variables",
             variables,
             default=variables[:10]
         )
     
-    elif modo == "Por grupo":
     
-        grupos = st.multiselect(
-            "Seleccionar grupos (ej: REACTOR C-12)",
-            list(mapa_variables.keys())
-        )
-    
-        for g in grupos:
-            for sub in mapa_variables[g]:
-                variables_rank.extend(mapa_variables[g][sub])
-    
-    elif modo == "Por subgrupo":
-    
-        grupo_sel = st.selectbox(
-            "Grupo",
-            list(mapa_variables.keys())
-        )
-    
-        subgrupos = st.multiselect(
-            "Subgrupos",
-            list(mapa_variables[grupo_sel].keys())
-        )
-    
-        for sub in subgrupos:
-            variables_rank.extend(mapa_variables[grupo_sel][sub])
-    
-    # eliminar duplicados
     variables_rank = list(set(variables_rank))
     x_rank = [v for v in variables_rank if v != y_obj]
 
