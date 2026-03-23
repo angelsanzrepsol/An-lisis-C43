@@ -340,7 +340,11 @@ for sh in sheets_sel:
         col_fecha: "Fecha"
     })
     df_tmp["Fecha"] = pd.to_datetime(df_tmp["Fecha"], errors="coerce").dt.normalize()
+    df_tmp = df_tmp.dropna(subset=["Fecha"])
 
+    if df_tmp.empty:
+        st.warning(f"{sh}: sin fechas válidas → se omite")
+        continue
     df_tmp = df_tmp[df_tmp["Fecha"].isin(fechas_validas)]
 
     df_tmp = df_tmp.set_index("Fecha")
