@@ -881,15 +881,60 @@ with tab2:
     else:
     
         st.dataframe(df_compare)
-    
+        
+        # ============================================
+        # FORMATO LARGO PARA PLOTLY (SOLUCIÓN)
+        # ============================================
+        
+        cols_plot = ["GLOBAL"] + filtros_sel
+        cols_plot = [c for c in cols_plot if c in df_compare.columns]
+        
+        df_melt = df_compare.melt(
+            id_vars="Variable",
+            value_vars=cols_plot,
+            var_name="Escenario",
+            value_name="Score"
+        )
+        
+        df_melt["Score"] = pd.to_numeric(df_melt["Score"], errors="coerce")
+        
         fig = px.bar(
-            df_compare,
+            df_melt,
             y="Variable",
-            x=["GLOBAL"] + filtros_sel,
+            x="Score",
+            color="Escenario",
             barmode="group"
         )
-    
+        
         st.plotly_chart(fig, use_container_width=True)
+        # ============================================
+        # IMPACTO DE FILTROS (Δ vs GLOBAL)
+        # ============================================
+        
+        cols_delta = [f"Δ {f}" for f in filtros_sel if f"Δ {f}" in df_compare.columns]
+        
+        if cols_delta:
+        
+            df_delta = df_compare.melt(
+                id_vars="Variable",
+                value_vars=cols_delta,
+                var_name="Filtro",
+                value_name="Delta"
+            )
+        
+            df_delta["Delta"] = pd.to_numeric(df_delta["Delta"], errors="coerce")
+        
+            st.markdown("### Impacto de filtros (Δ vs GLOBAL)")
+        
+            fig_delta = px.bar(
+                df_delta,
+                y="Variable",
+                x="Delta",
+                color="Filtro",
+                barmode="group"
+            )
+        
+            st.plotly_chart(fig_delta, use_container_width=True)
 
 # ============================================
 # TAB 3 — HEATMAP
