@@ -339,10 +339,19 @@ for sh in sheets_sel:
     df_tmp = df_tmp.rename(columns={
         col_fecha: "Fecha"
     })
-    df_tmp["Fecha"] = pd.to_datetime(df_tmp["Fecha"], errors="coerce").dt.normalize()
-    df_tmp = df_tmp.dropna(subset=["Fecha"])
-
-    if df_tmp.empty:
+    # convertir fecha
+    df_tmp["Fecha"] = pd.to_datetime(df_tmp["Fecha"], errors="coerce")
+    
+    # contar válidas
+    n_valid = df_tmp["Fecha"].notna().sum()
+    
+    if n_valid < 5:
+        st.warning(f"{sh}: pocas fechas válidas ({n_valid}) → se usa índice como fallback")
+        
+        # usar índice como fecha artificial
+        df_tmp["Fecha"] = pd.RangeIndex(start=0, stop=len(df_tmp), step=1)
+    else:
+        df_tmp["Fecha"] = df_tmp["Fecha"].dt.normalize()
         st.warning(f"{sh}: sin fechas válidas → se omite")
         continue
     df_tmp = df_tmp[df_tmp["Fecha"].isin(fechas_validas)]
