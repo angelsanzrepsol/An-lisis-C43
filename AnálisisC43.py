@@ -251,29 +251,6 @@ df_general.columns = cols_general
 # ============================================
 # DETECTAR COLUMNAS CLAVE (Fecha / Estado)
 # ============================================
-
-col_fecha = None
-col_estado = None
-
-for c in df_general.columns:
-    if any("Fecha" in str(x) for x in c):
-        col_fecha = c
-    if any("Estado" in str(x) for x in c):
-        col_estado = c
-
-if col_fecha is None:
-    st.error("No se encontró columna Fecha")
-    st.stop()
-
-if col_estado is None:
-    st.error("No se encontró columna Estado")
-    st.stop()
-
-# renombrar
-df_general = df_general.rename(columns={
-    col_fecha: "Fecha",
-    col_estado: "Estado"
-})
 df_general["Fecha"] = pd.to_datetime(df_general["Fecha"], errors="coerce").dt.normalize()
 df_general["Estado"] = df_general["Estado"].astype(str).str.upper()
 
@@ -348,10 +325,9 @@ for sh in sheets_sel:
     df_tmp.columns = cols
     col_fecha = None
 
-    for c in df_tmp.columns:
-        if any("Fecha" in str(x) for x in c):
-            col_fecha = c
-    
+    if "Fecha" not in df_tmp.columns:
+        continue
+  
     if col_fecha is None:
         continue
     
