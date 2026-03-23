@@ -344,7 +344,29 @@ for c in df.columns:
             pass
 
 variables = [c for c in df.columns if c != "Fecha"]
+# ============================================
+# MAPA JERÁRQUICO DE VARIABLES 🔥
+# ============================================
 
+mapa_variables = {}
+
+for col in variables:
+    
+    partes = col.split(" | ")
+    
+    if len(partes) < 2:
+        continue
+    
+    nivel1 = partes[1] if len(partes) > 1 else "Otros"
+    nivel2 = partes[2] if len(partes) > 2 else "General"
+
+    if nivel1 not in mapa_variables:
+        mapa_variables[nivel1] = {}
+
+    if nivel2 not in mapa_variables[nivel1]:
+        mapa_variables[nivel1][nivel2] = []
+
+    mapa_variables[nivel1][nivel2].append(col)
 st.success(f"Datos cargados: {len(df)} filas | {len(variables)} variables")
 
 # ============================================
@@ -822,11 +844,51 @@ with tab2:
         "Variable objetivo",
         variables
     )
-    variables_rank = st.multiselect(
-        "Variables a analizar",
-        variables,
-        default=variables[:10]
+    st.markdown("### Selección avanzada de variables")
+
+    modo = st.radio(
+        "Modo de selección",
+        ["Manual", "Por grupo", "Por subgrupo"]
     )
+    
+    variables_rank = []
+    
+    if modo == "Manual":
+    
+        variables_rank = st.multiselect(
+            "Seleccionar variables",
+            variables,
+            default=variables[:10]
+        )
+    
+    elif modo == "Por grupo":
+    
+        grupos = st.multiselect(
+            "Seleccionar grupos (ej: REACTOR C-12)",
+            list(mapa_variables.keys())
+        )
+    
+        for g in grupos:
+            for sub in mapa_variables[g]:
+                variables_rank.extend(mapa_variables[g][sub])
+    
+    elif modo == "Por subgrupo":
+    
+        grupo_sel = st.selectbox(
+            "Grupo",
+            list(mapa_variables.keys())
+        )
+    
+        subgrupos = st.multiselect(
+            "Subgrupos",
+            list(mapa_variables[grupo_sel].keys())
+        )
+    
+        for sub in subgrupos:
+            variables_rank.extend(mapa_variables[grupo_sel][sub])
+    
+    # eliminar duplicados
+    variables_rank = list(set(variables_rank))
     x_rank = [v for v in variables_rank if v != y_obj]
 
     # ============================================
